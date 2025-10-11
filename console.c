@@ -128,6 +128,32 @@ panic(char *s)
 #define CRTPORT 0x3d4
 static ushort *crt = (ushort*)P2V(0xb8000);  // CGA memory
 
+char get_char_at(int pos)
+{
+  if(pos < 0 || pos >= 25*80)
+    return ' ';
+  return crt[pos] & 0xFF;
+}
+
+
+int find_word_start(int current_pos)
+{
+  int pos = current_pos;
+  int line_start = pos - (pos % 80);
+  if(pos == line_start) return pos;
+  
+  while(pos > line_start && get_char_at(pos - 1) == ' ') {
+    pos--;
+  }
+  
+  while(pos > line_start && get_char_at(pos - 1) != ' ') {
+    pos--;
+  }
+  
+  return pos;
+}
+
+
 static void
 cgaputc(int c)
 {
@@ -139,20 +165,27 @@ cgaputc(int c)
   outb(CRTPORT, 15);
   pos |= inb(CRTPORT+1);
 
+
+  crt[pos] ^= 0x7700;
+
   if(c == '\n')
     pos += 80 - pos%80;
   else if(c == BACKSPACE){
+    crt[pos] = ' ' | 0x0700;
     if(pos > 0) --pos;
   } else if(c == KEY_RT) {
     if(pos % 80 != 79){
-      crt[pos] ^= 0x7700;
       pos++;
     }
-  } else if(c == KEY_LF) {
+  } else if(c&0xff == KEY_LF) {
     if(pos > 0){
-      crt[pos] ^= 0x7700;
       --pos;
-    }  
+  } else if(c == C('D')) {
+    crt[pos++] = '[' | 0x0700;
+    crt[pos++] = 'D' | 0x0700; 
+    crt[pos++] = ']' | 0x0700;
+    // pos = find_word_start(pos);
+  } 
   } else
     crt[pos++] = (c&0xff) | 0x0700;  // black on white
 
@@ -225,12 +258,21 @@ consoleintr(int (*getc)(void))
         consputc(BACKSPACE);
       }
       break;
+    case KEY_LF:
+      
+      break;
+    case KEY_RT:
+      
+      break;
+    case C('D'):
+      // TODO
+      break;
     default:
       if(c != 0 && input.e-input.r < INPUT_BUF){
         c = (c == '\r') ? '\n' : c;
         input.buf[input.e++ % INPUT_BUF] = c;
         consputc(c);
-        if(c == '\n' || c == C('D') || input.e == input.r+INPUT_BUF){
+        if(c == '\n' /*|| c == C('D')*/ || input.e == input.r+INPUT_BUF){
           input.w = input.e;
           wakeup(&input.r);
         }
