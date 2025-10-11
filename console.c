@@ -14,7 +14,7 @@
 #include "mmu.h"
 #include "proc.h"
 #include "x86.h"
-
+#include "kbd.h"
 static void consputc(int);
 
 static int panicked = 0;
@@ -143,6 +143,16 @@ cgaputc(int c)
     pos += 80 - pos%80;
   else if(c == BACKSPACE){
     if(pos > 0) --pos;
+  } else if(c == KEY_RT) {
+    if(pos % 80 != 79){
+      crt[pos] ^= 0x7700;
+      pos++;
+    }
+  } else if(c == KEY_LF) {
+    if(pos > 0){
+      crt[pos] ^= 0x7700;
+      --pos;
+    }  
   } else
     crt[pos++] = (c&0xff) | 0x0700;  // black on white
 
@@ -159,7 +169,9 @@ cgaputc(int c)
   outb(CRTPORT+1, pos>>8);
   outb(CRTPORT, 15);
   outb(CRTPORT+1, pos);
-  crt[pos] = ' ' | 0x0700;
+  ushort current = crt[pos];
+  crt[pos] = (current & 0x00FF) | ((current & 0xFF00) ^ 0x7700);
+  // crt[pos] = ' ' | 0x0700;
 }
 
 void
