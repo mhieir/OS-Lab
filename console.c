@@ -171,19 +171,15 @@ cgaputc(int c)
   if(c == '\n')
     pos += 80 - pos%80;
   else if(c == BACKSPACE){
-    crt[pos] = ' ' | 0x0700;
-    if(pos > 0) --pos;
+     crt[--pos] = ' ' | 0x0700;
   } else if(c == KEY_RT) {
     if(pos % 80 != 79){
       pos++;
     }
-  } else if(c&0xff == KEY_LF) {
+  } else if(c == KEY_LF) {
     if(pos > 0){
       --pos;
   } else if(c == C('D')) {
-    crt[pos++] = '[' | 0x0700;
-    crt[pos++] = 'D' | 0x0700; 
-    crt[pos++] = ']' | 0x0700;
     // pos = find_word_start(pos);
   } 
   } else
@@ -229,9 +225,95 @@ struct {
   uint r;  // Read index
   uint w;  // Write index
   uint e;  // Edit index
+  uint cur;// cursor index
 } input;
 
 #define C(x)  ((x)-'@')  // Control-x
+
+static void
+shift_right(uint start, uint end)
+{
+  for (uint i = end; i > start; i--)
+    input.buf[i % INPUT_BUF] = input.buf[(i - 1) % INPUT_BUF];
+}
+
+static void
+shift_left(uint start, uint end)
+{
+  for (uint i = start; i < end - 1; i++)
+    input.buf[i % INPUT_BUF] = input.buf[(i + 1) % INPUT_BUF];
+}
+
+static void
+redraw_from_cursor(void)
+{
+  for (uint i = input.cur; i < input.e; i++)
+    consputc(input.buf[i % INPUT_BUF]);
+  consputc(' ');
+  for (uint i = input.e; i >= input.cur; i--)
+    consputc(KEY_LF);
+}
+
+static void
+insert_char(int c)
+{
+  if (input.cur == input.e) {
+    input.buf[input.e++ % INPUT_BUF] = c;
+    consputc(c);
+    input.cur = input.e;
+  } else {
+    shift_right(input.cur, input.e);
+    input.buf[input.cur % INPUT_BUF] = c;
+    input.e++;
+    input.cur++;
+
+    for (uint i = input.cur - 1; i < input.e; i++)
+      consputc(input.buf[i % INPUT_BUF]);
+    for (uint i = input.e; i > input.cur; i--)
+      consputc('\b');
+  }
+}
+
+static void
+handle_backspace(void)
+{
+
+  // case C('H'): case '\x7f':  // Backspace
+  //     if(input.e != input.w){
+  //       input.e--;
+  //       consputc(BACKSPACE);
+  //     }
+  //     break;
+
+
+  if (input.cur > input.w) {
+    shift_left(input.cur - 1, input.e);
+    input.cur--;
+    input.e--;
+    consputc(BACKSPACE);
+    redraw_from_cursor();
+  }
+}
+
+static void
+cursor_left(void)
+{
+  if (input.cur > input.w) {
+    consputc(KEY_LF);
+    input.cur--;
+  }
+}
+
+static void
+cursor_right(void)
+{
+  if (input.cur < input.e) {
+    consputc(input.buf[input.cur % INPUT_BUF]);
+    input.cur++;
+  }
+}
+
+
 
 void
 consoleintr(int (*getc)(void))
@@ -239,41 +321,45 @@ consoleintr(int (*getc)(void))
   int c, doprocdump = 0;
 
   acquire(&cons.lock);
-  while((c = getc()) >= 0){
-    switch(c){
-    case C('P'):  // Process listing.
-      // procdump() locks cons.lock indirectly; invoke later
+  while ((c = getc()) >= 0) {
+    switch (c) {
+    case C('P'):
       doprocdump = 1;
       break;
-    case C('U'):  // Kill line.
-      while(input.e != input.w &&
-            input.buf[(input.e-1) % INPUT_BUF] != '\n'){
+
+    case C('U'): // Kill line
+      while (input.e != input.w &&
+             input.buf[(input.e - 1) % INPUT_BUF] != '\n') {
         input.e--;
+        input.cur = input.e;
         consputc(BACKSPACE);
       }
       break;
-    case C('H'): case '\x7f':  // Backspace
-      if(input.e != input.w){
-        input.e--;
-        consputc(BACKSPACE);
-      }
+
+    case C('H'): case '\x7f': // Backspace
+      handle_backspace();
       break;
+
     case KEY_LF:
-      
+      cursor_left();
       break;
-    case KEY_RT:
-      
-      break;
+
+    // case KEY_RT:
+    //   cursor_right();
+    //   break;
+
     case C('D'):
-      // TODO
+      // TODO: optional Ctrl+D logic
       break;
+
     default:
-      if(c != 0 && input.e-input.r < INPUT_BUF){
+      if (c != 0 && input.e - input.r < INPUT_BUF) {
         c = (c == '\r') ? '\n' : c;
-        input.buf[input.e++ % INPUT_BUF] = c;
-        consputc(c);
-        if(c == '\n' /*|| c == C('D')*/ || input.e == input.r+INPUT_BUF){
+        insert_char(c);
+
+        if (c == '\n' || input.e == input.r + INPUT_BUF) {
           input.w = input.e;
+          input.cur = input.e;
           wakeup(&input.r);
         }
       }
@@ -281,10 +367,12 @@ consoleintr(int (*getc)(void))
     }
   }
   release(&cons.lock);
-  if(doprocdump) {
-    procdump();  // now call procdump() wo. cons.lock held
+
+  if (doprocdump) {
+    procdump();
   }
 }
+
 
 int
 consoleread(struct inode *ip, char *dst, int n)
