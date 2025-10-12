@@ -220,13 +220,18 @@ consputc(int c)
 }
 
 #define INPUT_BUF 128
-struct {
+#define MAX_UNDO_HISTORY 32
+typedef struct {
   char buf[INPUT_BUF];
-  uint r;  // Read index
-  uint w;  // Write index
-  uint e;  // Edit index
-  uint cur;// cursor index
-} input;
+  uint r;
+  uint w;
+  uint e;
+  uint cur;
+} input_state_t;
+
+static input_state_t input;
+static input_state_t undo_history[MAX_UNDO_HISTORY];
+static int hist_top = -1;
 
 #define C(x)  ((x)-'@')  // Control-x
 
@@ -280,6 +285,14 @@ static void
 cursor_right(void)
 {
   if (input.cur < input.e) {
+    consputc(input.buf[input.cur % INPUT_BUF]);
+    input.cur++;
+  }
+}
+
+static void 
+cursor_end_line(void) {
+  while (input.cur < input.e) {
     consputc(input.buf[input.cur % INPUT_BUF]);
     input.cur++;
   }
@@ -344,6 +357,17 @@ insert_char_at_cursor(int c)
   }
 }
 
+static void
+kill_line(void) {
+  cursor_end_line();
+  while (input.e != input.w &&
+      input.buf[(input.e - 1) % INPUT_BUF] != '\n') {
+    input.e--;
+    input.cur = input.e;
+    consputc(BACKSPACE);
+  }
+}
+
 
 void
 consoleintr(int (*getc)(void))
@@ -358,12 +382,7 @@ consoleintr(int (*getc)(void))
       break;
 
     case C('U'): // Kill line
-      while (input.e != input.w &&
-             input.buf[(input.e - 1) % INPUT_BUF] != '\n') {
-        input.e--;
-        input.cur = input.e;
-        consputc(BACKSPACE);
-      }
+      kill_line();
       break;
 
     case C('H'): case BACKSPACE: /*case '\x7f':*/ // Backspace
