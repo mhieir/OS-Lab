@@ -250,8 +250,9 @@ redraw_from_cursor(void)
   for (uint i = input.cur; i < input.e; i++)
     consputc(input.buf[i % INPUT_BUF]);
   consputc(' ');
-  for (uint i = input.e; i >= input.cur; i--)
+  for (uint i = input.e; i >= input.cur + 1; i--)
     consputc(KEY_LF);
+  consputc(KEY_LF);
 }
 
 static void
@@ -336,7 +337,7 @@ consoleintr(int (*getc)(void))
       }
       break;
 
-    case C('H'): case '\x7f': // Backspace
+    case C('H'): case BACKSPACE: /*case '\x7f':*/ // Backspace
       handle_backspace();
       break;
 
