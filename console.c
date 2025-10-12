@@ -369,13 +369,62 @@ kill_line(void) {
 }
 
 
+static void
+clear_history(void) {
+  hist_top = 0;
+  memset(undo_history[0].buf, 0, INPUT_BUF);
+  undo_history[0].e = input.e;
+  undo_history[0].w = input.w;
+  undo_history[0].cur = input.cur;
+}
+
+static void 
+save_snapshot(void) {
+  if (hist_top + 1 < MAX_UNDO_HISTORY) {
+    hist_top++;
+    memmove(undo_history[hist_top].buf, input.buf, INPUT_BUF);
+    undo_history[hist_top].e = input.e;
+    undo_history[hist_top].cur = input.cur;
+  } else {
+    for (int i = 0; i < MAX_UNDO_HISTORY - 1; i++) {
+      memmove(undo_history[i].buf, undo_history[i + 1].buf, INPUT_BUF);
+      undo_history[i].e = undo_history[i + 1].e;
+      undo_history[i].cur = undo_history[i + 1].cur;
+    }
+    memmove(undo_history[MAX_UNDO_HISTORY - 1].buf, input.buf, INPUT_BUF);
+    undo_history[MAX_UNDO_HISTORY - 1].e = input.e;
+    undo_history[MAX_UNDO_HISTORY - 1].cur = input.cur;
+    hist_top = MAX_UNDO_HISTORY - 1;
+  }
+}
+
+
+static void 
+undo_last_change(void) {
+  if (hist_top < 0)
+    return;
+  kill_line();
+  memmove(input.buf, undo_history[hist_top].buf, INPUT_BUF);
+  input.e = undo_history[hist_top].e;
+  input.cur = undo_history[hist_top].cur;
+  hist_top--;
+
+  for (uint i = input.w; i < input.e; i++) {
+    consputc(input.buf[i % INPUT_BUF]);
+  }
+   for (uint i = input.e; i > input.cur; i--)
+    consputc(KEY_LF);
+}
+
 void
 consoleintr(int (*getc)(void))
 {
   int c, doprocdump = 0;
+  int modified = 0;
 
   acquire(&cons.lock);
   while ((c = getc()) >= 0) {
+    modified = 0; 
     switch (c) {
     case C('P'):
       doprocdump = 1;
@@ -383,10 +432,16 @@ consoleintr(int (*getc)(void))
 
     case C('U'): // Kill line
       kill_line();
+      modified = 1;
       break;
 
-    case C('H'): case BACKSPACE: /*case '\x7f':*/ // Backspace
+    case C('H'): case BACKSPACE:
       handle_backspace();
+      modified = 1;
+      break;
+
+    case C('Z'):
+      undo_last_change();
       break;
 
     case KEY_LF:
@@ -408,14 +463,21 @@ consoleintr(int (*getc)(void))
     default:
       if (c != 0 && input.e - input.r < INPUT_BUF) {
         insert_char_at_cursor(c);
+        modified = 1;
 
         if (c == '\n' || input.e == input.r + INPUT_BUF) {
           input.w = input.e;
           input.cur = input.e;
+          clear_history();
+          modified = 0;
           wakeup(&input.r);
         }
       }
       break;
+    }
+
+    if (modified) {
+      save_snapshot();
     }
   }
   release(&cons.lock);
