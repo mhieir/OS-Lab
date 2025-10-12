@@ -230,11 +230,11 @@ typedef struct {
 } input_state_t;
 
 static input_state_t input;
-static input_state_t undo_history[MAX_UNDO_HISTORY];
-static int hist_top = -1;
 
 #define C(x)  ((x)-'@')  // Control-x
-
+//-------------------------------------------------------curser-movements------------------------------------------------------------
+static input_state_t undo_history[MAX_UNDO_HISTORY];
+static int hist_top = -1;
 static void
 shift_right(uint start, uint end)
 {
@@ -356,7 +356,7 @@ insert_char_at_cursor(int c)
     consputc(KEY_LF);
   }
 }
-
+//-------------------------------------------------------control +Z history-----------------------------------------------------------
 static void
 kill_line(void) {
   cursor_end_line();
@@ -416,6 +416,81 @@ undo_last_change(void) {
     consputc(KEY_LF);
 }
 
+//-------------------------------------------------------copy-pasting-----------------------------------------------------------------
+static int selecting = 0;
+static uint sel_start = 0;
+static uint sel_end = 0;
+static char clipboard[INPUT_BUF];
+static uint highlight_for_selection = 0;
+
+
+static void clear_selection(void) {
+  selecting = 0;
+  sel_start = sel_end = 0;
+}
+
+static void start_or_update_selection(void) {
+  if (!selecting) {
+    selecting = 1;
+    sel_start = input.cur;
+    sel_end = input.cur;
+    
+  } else {
+    sel_end = input.cur;
+
+    if(sel_start > sel_end){ //swap
+      sel_start ^= sel_end;
+      sel_end ^= sel_start;
+      sel_start ^= sel_end;
+    }
+
+    highlight_for_selection = 1;
+    for (uint i = input.cur; i < input.e; i++) {
+      consputc(input.buf[i % INPUT_BUF]);
+    }
+    highlight_for_selection = 0;
+
+    for (uint i = input.e; i > input.cur; i--) {
+      consputc(KEY_LF);
+    }
+  }
+}
+
+static void copy_selection(void) {
+  if (selecting && sel_start != sel_end) {
+    uint start = sel_start < sel_end ? sel_start : sel_end;
+    uint end = sel_start < sel_end ? sel_end : sel_start;
+    uint len = end - start;
+    for (uint i = 0; i < len && i < INPUT_BUF - 1; i++)
+      clipboard[i] = input.buf[(start + i) % INPUT_BUF];
+    clipboard[len] = '\0';
+  }
+}
+
+static void delete_selection(void) {
+  if (selecting && sel_start != sel_end) {
+    uint start = sel_start < sel_end ? sel_start : sel_end;
+    uint end = sel_start < sel_end ? sel_end : sel_start;
+    uint len = end - start;
+    for (uint i = start; i + len < input.e; i++)
+      input.buf[i % INPUT_BUF] = input.buf[(i + len) % INPUT_BUF];
+    input.e -= len;
+    input.cur = start;
+    redraw_from_cursor();
+    clear_selection();
+  }
+}
+
+static void paste_clipboard(void) {
+  if (clipboard[0] != '\0') {
+    delete_selection();
+    for (uint i = 0; clipboard[i] && input.e - input.r < INPUT_BUF; i++) {
+      insert_char_at_cursor(clipboard[i]);
+    }
+  }
+}
+
+
 void
 consoleintr(int (*getc)(void))
 {
@@ -436,8 +511,13 @@ consoleintr(int (*getc)(void))
       break;
 
     case C('H'): case BACKSPACE:
-      handle_backspace();
-      modified = 1;
+      if (selecting) {
+        delete_selection();
+        modified = 1;
+      } else {
+        handle_backspace();
+        modified = 1;
+      }
       break;
 
     case C('Z'):
@@ -458,6 +538,18 @@ consoleintr(int (*getc)(void))
 
     case C('A'):
       cursor_prev_word();
+      break;
+    case C('S'):
+      start_or_update_selection();
+      break;
+
+    case C('C'):
+      copy_selection();
+      break;
+
+    case C('V'):
+      paste_clipboard();
+      modified = 1;
       break;
 
     default:
