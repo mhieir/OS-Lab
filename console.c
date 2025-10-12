@@ -256,37 +256,8 @@ redraw_from_cursor(void)
 }
 
 static void
-insert_char(int c)
-{
-  if (input.cur == input.e) {
-    input.buf[input.e++ % INPUT_BUF] = c;
-    consputc(c);
-    input.cur = input.e;
-  } else {
-    shift_right(input.cur, input.e);
-    input.buf[input.cur % INPUT_BUF] = c;
-    input.e++;
-    input.cur++;
-
-    for (uint i = input.cur - 1; i < input.e; i++)
-      consputc(input.buf[i % INPUT_BUF]);
-    for (uint i = input.e; i > input.cur; i--)
-      consputc('\b');
-  }
-}
-
-static void
 handle_backspace(void)
 {
-
-  // case C('H'): case '\x7f':  // Backspace
-  //     if(input.e != input.w){
-  //       input.e--;
-  //       consputc(BACKSPACE);
-  //     }
-  //     break;
-
-
   if (input.cur > input.w) {
     shift_left(input.cur - 1, input.e);
     input.cur--;
@@ -341,6 +312,37 @@ cursor_next_word(void) {
   }
 }
 
+static void
+insert_char_at_cursor(int c)
+{
+  if (c == '\r')
+    c = '\n';
+
+  if (input.cur == input.e) {
+    input.buf[input.e++ % INPUT_BUF] = c;
+    consputc(c);
+    input.cur++;
+    return;
+  }
+
+
+  for (uint i = input.e; i > input.cur; i--) {
+    input.buf[i % INPUT_BUF] = input.buf[(i - 1) % INPUT_BUF];
+  }
+
+  input.buf[input.cur % INPUT_BUF] = c;
+  consputc(c);
+  input.e++;
+  input.cur++;
+
+  for (uint i = input.cur; i < input.e; i++) {
+    consputc(input.buf[i % INPUT_BUF]);
+  }
+
+  for (uint i = input.e; i > input.cur; i--) {
+    consputc(KEY_LF);
+  }
+}
 
 
 void
@@ -386,8 +388,7 @@ consoleintr(int (*getc)(void))
 
     default:
       if (c != 0 && input.e - input.r < INPUT_BUF) {
-        c = (c == '\r') ? '\n' : c;
-        insert_char(c);
+        insert_char_at_cursor(c);
 
         if (c == '\n' || input.e == input.r + INPUT_BUF) {
           input.w = input.e;
