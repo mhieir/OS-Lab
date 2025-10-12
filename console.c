@@ -314,6 +314,33 @@ cursor_right(void)
   }
 }
 
+static void 
+cursor_prev_word(void) {
+  while (input.cur > input.w && input.buf[(input.cur - 1) % INPUT_BUF] == ' ') {
+    consputc(KEY_LF);
+    input.cur--;
+  }
+
+  while (input.cur > input.w && input.buf[(input.cur - 1) % INPUT_BUF] != ' ') {
+    consputc(KEY_LF);
+    input.cur--;
+  }
+}
+
+static void 
+cursor_next_word(void) {
+  while (input.cur < input.e && input.buf[input.cur % INPUT_BUF] != ' ')
+  {
+    consputc(input.buf[input.cur % INPUT_BUF]);
+    input.cur++;
+  }
+  while (input.cur < input.e && input.buf[input.cur % INPUT_BUF] == ' ')
+  {
+    consputc(input.buf[input.cur % INPUT_BUF]);
+    input.cur++;
+  }
+}
+
 
 
 void
@@ -345,12 +372,16 @@ consoleintr(int (*getc)(void))
       cursor_left();
       break;
 
-    // case KEY_RT:
-    //   cursor_right();
-    //   break;
+    case KEY_RT:
+      cursor_right();
+      break;
 
     case C('D'):
-      // TODO: optional Ctrl+D logic
+      cursor_next_word();
+      break;
+
+    case C('A'):
+      cursor_prev_word();
       break;
 
     default:
