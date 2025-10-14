@@ -454,12 +454,10 @@ static void start_or_update_selection(void) {
 
 
 static void copy_selection(void) {
-  if (selecting && sel_start != sel_end) {
-    uint start = sel_start < sel_end ? sel_start : sel_end;
-    uint end = sel_start < sel_end ? sel_end : sel_start;
-    uint len = end - start;
-    for (uint i = 0; i < len && i < INPUT_BUF - 1; i++)
-      clipboard[i] = input.buf[(start + i) % INPUT_BUF];
+  if (selecting) {
+    uint len = sel_end - sel_start + 1;
+    for (uint i = 0; i < len /*&& i <= INPUT_BUF - 1*/; i++)
+      clipboard[i] = input.buf[(sel_start + i) % INPUT_BUF];
     clipboard[len] = '\0';
   }
 }
@@ -474,21 +472,15 @@ static void delete_selection(void) {
     reach_graphic_cursor_to(sel_start);
     input.cur = sel_start;
     input.e -= len;
-    
-    
+  
     redraw_from_cursor(len);
-
-    
-
-
     clear_selection();
   }
 }
 
 static void paste_clipboard(void) {
   if (clipboard[0] != '\0') {
-    delete_selection();
-    for (uint i = 0; clipboard[i] && input.e - input.r < INPUT_BUF; i++) {
+    for (uint i = 0; clipboard[i]!= '\0' /*&& input.e - input.r < INPUT_BUF*/; i++) {
       insert_char_at_cursor(clipboard[i]);
     }
   }
@@ -552,12 +544,16 @@ consoleintr(int (*getc)(void))
       break;
 
     case C('V'):
+      if(selecting)
+        delete_selection();
       paste_clipboard();
       modified = 1;
       break;
 
     default:
       if (c != 0 && input.e - input.r < INPUT_BUF) {
+        if(selecting)
+          delete_selection();
         insert_char_at_cursor(c);
         modified = 1;
 
