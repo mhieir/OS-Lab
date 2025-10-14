@@ -407,10 +407,6 @@ static uint sel_start = 0;
 static uint sel_end = 0;
 static char clipboard[INPUT_BUF];
 
-static void clear_selection(void) {
-  selecting = 0;
-  sel_start = sel_end = 0;
-}
 
 static void reach_graphic_cursor_to(uint reaching_point){
   if(input.cur > reaching_point)
@@ -422,17 +418,33 @@ static void reach_graphic_cursor_to(uint reaching_point){
     while(input.cur < reaching_point){
       consputc(KEY_RT);
       input.cur++;
-    }
+  }
 }
 
+static void clear_selection(void) {
+  if(selecting){
+    uint old_cur = input.cur;
+    reach_graphic_cursor_to(sel_start); 
+    for(uint i = sel_start; i <= sel_end; i++){
+      consputc(input.buf[i % INPUT_BUF]);
+      input.cur++;
+    }
+    reach_graphic_cursor_to(old_cur);
+  }
+  selecting = 0;
+  sel_start = sel_end = 0;
+}
+
+
 static void start_or_update_selection(void) {
-  if (!selecting) {
+  if (selecting == 0) {
     selecting = 1;
     sel_start = input.cur;
     sel_end = input.cur;
-  } else {
+  } 
+  else if(selecting == 1){
     sel_end = input.cur;
-
+    selecting = 2;
     if (sel_start > sel_end) {
       sel_start ^= sel_end;
       sel_end ^= sel_start;
@@ -450,6 +462,9 @@ static void start_or_update_selection(void) {
     highlight_for_selection = 0;
     reach_graphic_cursor_to(old_cur);
   }
+  else{
+    clear_selection();
+  }
 }
 
 
@@ -463,7 +478,7 @@ static void copy_selection(void) {
 }
 
 static void delete_selection(void) {
-  if (selecting && sel_start != sel_end) {
+  if (selecting) {
     uint len = sel_end - sel_start+1;
     for (uint i = sel_start; i <= sel_end  & i < input.e; i++)
       input.buf[i % INPUT_BUF] = input.buf[(i + len) % INPUT_BUF];
@@ -517,7 +532,10 @@ consoleintr(int (*getc)(void))
       break;
 
     case C('Z'):
-      undo_last_change();
+      if(selecting)
+        clear_selection();
+      else
+        undo_last_change();
       break;
 
     case KEY_LF:
@@ -529,11 +547,17 @@ consoleintr(int (*getc)(void))
       break;
 
     case C('D'):
-      cursor_next_word();
+      if(selecting)
+        clear_selection();
+      else
+        cursor_next_word();
       break;
 
     case C('A'):
-      cursor_prev_word();
+      if(selecting)
+        clear_selection();
+      else
+        cursor_prev_word();
       break;
     case C('S'):
       start_or_update_selection();
