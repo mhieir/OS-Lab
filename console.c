@@ -128,31 +128,7 @@ panic(char *s)
 #define CRTPORT 0x3d4
 static ushort *crt = (ushort*)P2V(0xb8000);  // CGA memory
 
-char get_char_at(int pos)
-{
-  if(pos < 0 || pos >= 25*80)
-    return ' ';
-  return crt[pos] & 0xFF;
-}
-
-
-int find_word_start(int current_pos)
-{
-  int pos = current_pos;
-  int line_start = pos - (pos % 80);
-  if(pos == line_start) return pos;
-  
-  while(pos > line_start && get_char_at(pos - 1) == ' ') {
-    pos--;
-  }
-  
-  while(pos > line_start && get_char_at(pos - 1) != ' ') {
-    pos--;
-  }
-  
-  return pos;
-}
-
+static uint highlight_for_selection = 0;
 
 static void
 cgaputc(int c)
@@ -172,18 +148,25 @@ cgaputc(int c)
     pos += 80 - pos%80;
   else if(c == BACKSPACE){
      crt[--pos] = ' ' | 0x0700;
-  } else if(c == KEY_RT) {
+  } 
+  else if(c == KEY_RT) {
     if(pos % 80 != 79){
       pos++;
     }
-  } else if(c == KEY_LF) {
+  } 
+  else if(c == KEY_LF) {
     if(pos > 0){
       --pos;
-  } else if(c == C('D')) {
-    // pos = find_word_start(pos);
-  } 
-  } else
-    crt[pos++] = (c&0xff) | 0x0700;  // black on white
+    }
+  }
+  else{
+    if(highlight_for_selection){
+      ushort current =  (c&0xff) | 0x0700;
+      crt[pos++] =  (current & 0x00FF) | ((current & 0xFF00) ^ 0x7700);
+    }
+    else
+      crt[pos++] = (c&0xff) | 0x0700;  // black on white
+  }
 
   if(pos < 0 || pos > 25*80)
     panic("pos under/overflow");
@@ -250,12 +233,14 @@ shift_left(uint start, uint end)
 }
 
 static void
-redraw_from_cursor(void)
+redraw_from_cursor(uint len)
 {
   for (uint i = input.cur; i < input.e; i++)
-    consputc(input.buf[i % INPUT_BUF]);
-  consputc(' ');
-  for (uint i = input.e; i >= input.cur + 1; i--)
+     consputc(input.buf[i % INPUT_BUF]);
+  for (uint i = 0; i < len; i++)
+    consputc(' ');
+      
+  for (uint i = input.e + len - 1; i >= input.cur + 1; i--)
     consputc(KEY_LF);
   consputc(KEY_LF);
 }
@@ -268,7 +253,7 @@ handle_backspace(void)
     input.cur--;
     input.e--;
     consputc(BACKSPACE);
-    redraw_from_cursor();
+    redraw_from_cursor(1);
   }
 }
 
@@ -285,7 +270,7 @@ static void
 cursor_right(void)
 {
   if (input.cur < input.e) {
-    consputc(input.buf[input.cur % INPUT_BUF]);
+    consputc(KEY_RT);
     input.cur++;
   }
 }
@@ -421,12 +406,23 @@ static int selecting = 0;
 static uint sel_start = 0;
 static uint sel_end = 0;
 static char clipboard[INPUT_BUF];
-static uint highlight_for_selection = 0;
-
 
 static void clear_selection(void) {
   selecting = 0;
   sel_start = sel_end = 0;
+}
+
+static void reach_graphic_cursor_to(uint reaching_point){
+  if(input.cur > reaching_point)
+    while( input.cur > reaching_point){
+      consputc(KEY_LF);
+      input.cur--;
+    }
+  else
+    while(input.cur < reaching_point){
+      consputc(KEY_RT);
+      input.cur++;
+    }
 }
 
 static void start_or_update_selection(void) {
@@ -434,27 +430,28 @@ static void start_or_update_selection(void) {
     selecting = 1;
     sel_start = input.cur;
     sel_end = input.cur;
-    
   } else {
     sel_end = input.cur;
 
-    if(sel_start > sel_end){ //swap
+    if (sel_start > sel_end) {
       sel_start ^= sel_end;
       sel_end ^= sel_start;
       sel_start ^= sel_end;
     }
 
+    uint old_cur = input.cur;
+    reach_graphic_cursor_to(sel_start);
+
     highlight_for_selection = 1;
-    for (uint i = input.cur; i < input.e; i++) {
+    for (uint i = sel_start; i <= sel_end; i++) {
       consputc(input.buf[i % INPUT_BUF]);
+      input.cur++;
     }
     highlight_for_selection = 0;
-
-    for (uint i = input.e; i > input.cur; i--) {
-      consputc(KEY_LF);
-    }
+    reach_graphic_cursor_to(old_cur);
   }
 }
+
 
 static void copy_selection(void) {
   if (selecting && sel_start != sel_end) {
@@ -469,14 +466,21 @@ static void copy_selection(void) {
 
 static void delete_selection(void) {
   if (selecting && sel_start != sel_end) {
-    uint start = sel_start < sel_end ? sel_start : sel_end;
-    uint end = sel_start < sel_end ? sel_end : sel_start;
-    uint len = end - start;
-    for (uint i = start; i + len < input.e; i++)
+    uint len = sel_end - sel_start+1;
+    for (uint i = sel_start; i <= sel_end  & i < input.e; i++)
       input.buf[i % INPUT_BUF] = input.buf[(i + len) % INPUT_BUF];
+    
+
+    reach_graphic_cursor_to(sel_start);
+    input.cur = sel_start;
     input.e -= len;
-    input.cur = start;
-    redraw_from_cursor();
+    
+    
+    redraw_from_cursor(len);
+
+    
+
+
     clear_selection();
   }
 }
