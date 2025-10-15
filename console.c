@@ -657,8 +657,8 @@ consolewrite(struct inode *ip, char *buf, int n)
   acquire(&cons.lock);
   for(i = 0; i < n; i++){
     c = buf[i] & 0xff;
-    if (c=='\t')
-      continue;
+    // if (c=='\t')
+    //   continue;
     consputc(c);
   }
   release(&cons.lock);

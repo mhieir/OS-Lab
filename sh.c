@@ -218,25 +218,24 @@ int completecmd(char *buf)
   if (!strlen(buf))
     return 0;
   int matchcount = 0;
-  char *fileidx = buf;
-  char **list = findmatch(".", fileidx, &matchcount);
+  char **list = findmatch(".", buf, &matchcount);
 
   // printf(1, "   match: %d\n", matchcount);
   if (matchcount == 1)
   {
     int buflen = strlen(buf);
-    printf(1,list[0] + 2 + buflen);
+    printf(1,"%s",list[0] + 2 + buflen);
     strcpy(buf + buflen, list[0] + 2 + buflen);
   }
   else if (matchcount > 1)
   {
     printf(1, "\n");
     for (int i=0;i<matchcount;i++){
-      printf(1,list[i]+2);
+      printf(1,"%s",list[i]+2);
       printf(1, "   ");
     }
     printf(1,"\n$");
-    printf(1,buf);
+    printf(1,"%s",buf);
   }
 
   for (int i = 0; i < matchcount; i++)
@@ -281,7 +280,7 @@ main(void)
 
   // Read and run input commands.
   while(getcmd(0,buf, sizeof(buf)) >= 0){
-    printf(1,"the command is: %s \n" ,buf);
+    printf(1,"the\tcommand is: %s \n" ,buf);
     if(buf[0] == 'c' && buf[1] == 'd' && buf[2] == ' '){
       // Chdir must be called by the parent, not the child.
       buf[strlen(buf)-1] = 0;  // chop \n
