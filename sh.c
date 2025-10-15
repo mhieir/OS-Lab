@@ -235,7 +235,8 @@ int completecmd(char *buf)
       printf(1,list[i]+2);
       printf(1, "   ");
     }
-    printf(1,"\n");
+    printf(1,"\n$");
+    printf(1,buf);
   }
 
   for (int i = 0; i < matchcount; i++)
@@ -245,13 +246,22 @@ int completecmd(char *buf)
 }
 
 int
-getcmd(char *buf, int nbuf)
-{
-  printf(2, "$ ");
-  memset(buf, 0, nbuf);
-  gets(buf, nbuf);
+getcmd(int st, char *buf, int nbuf)
+{ 
+  if(st == 0){
+    printf(2, "$ ");
+    memset(buf, 0, nbuf);
+  }
+  gets(st, buf, nbuf);
   if(buf[0] == 0) // EOF
     return -1;
+  
+  int len = strlen(buf);
+  if(buf[len -1] == '\t'){
+    buf[len-1] = '\0';
+    completecmd(buf);
+    getcmd(strlen(buf), buf, nbuf);
+  }
   return 0;
 }
 
@@ -270,17 +280,13 @@ main(void)
   }
 
   // Read and run input commands.
-  while(getcmd(buf, sizeof(buf)) >= 0){
+  while(getcmd(0,buf, sizeof(buf)) >= 0){
+    printf(1,"the command is: %s \n" ,buf);
     if(buf[0] == 'c' && buf[1] == 'd' && buf[2] == ' '){
       // Chdir must be called by the parent, not the child.
       buf[strlen(buf)-1] = 0;  // chop \n
       if(chdir(buf+3) < 0)
         printf(2, "cannot cd %s\n", buf+3);
-      continue;
-    }
-    if(buf[strlen(buf)-1] == '\t'){
-      buf[strlen(buf)-1] = '\0';
-      completecmd(buf);
       continue;
     }
     if(fork1() == 0)

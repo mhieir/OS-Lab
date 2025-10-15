@@ -480,7 +480,7 @@ static void copy_selection(void) {
 static void delete_selection(void) {
   if (selecting) {
     uint len = sel_end - sel_start+1;
-    for (uint i = sel_start; i <= sel_end  & i < input.e; i++)
+    for (uint i = sel_start; i <= sel_end  && i < input.e; i++)
       input.buf[i % INPUT_BUF] = input.buf[(i + len) % INPUT_BUF];
     
 
@@ -635,9 +635,11 @@ consoleread(struct inode *ip, char *dst, int n)
       }
       break;
     }
+    // if(c == '\t')
+    //   continue;
     *dst++ = c;
     --n;
-    if(c == '\n' || c=='\t')
+    if(c == '\n')
       break;
   }
   release(&cons.lock);
@@ -649,11 +651,16 @@ int
 consolewrite(struct inode *ip, char *buf, int n)
 {
   int i;
+  char c;
   
   iunlock(ip);
   acquire(&cons.lock);
-  for(i = 0; i < n; i++)
-    consputc(buf[i] & 0xff);
+  for(i = 0; i < n; i++){
+    c = buf[i] & 0xff;
+    if (c=='\t')
+      continue;
+    consputc(c);
+  }
   release(&cons.lock);
   ilock(ip);
 

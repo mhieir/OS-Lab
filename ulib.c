@@ -61,12 +61,12 @@ isprefix(const char *str, const char *prefix) {
 }
 
 char*
-gets(char *buf, int max)
+gets(int st, char *buf, int max)
 {
   int i, cc;
   char c;
 
-  for(i=0; i+1 < max; ){
+  for(i=st; i+1 < max; ){
     cc = read(0, &c, 1);
     if(cc < 1)
       break;
