@@ -49,6 +49,17 @@ strchr(const char *s, char c)
   return 0;
 }
 
+int 
+isprefix(const char *str, const char *prefix) {
+    while(*prefix) {
+        if(*str == 0 || *str != *prefix)
+            return 0;
+        str++;
+        prefix++;
+    }
+    return 1; 
+}
+
 char*
 gets(char *buf, int max)
 {
@@ -60,7 +71,7 @@ gets(char *buf, int max)
     if(cc < 1)
       break;
     buf[i++] = c;
-    if(c == '\n' || c == '\r')
+    if(c == '\n' || c == '\r' || c == '\t')
       break;
   }
   buf[i] = '\0';

@@ -573,7 +573,11 @@ consoleintr(int (*getc)(void))
       paste_clipboard();
       modified = 1;
       break;
-
+    case '\t': // Tab key
+      input.buf[input.e++ % INPUT_BUF] = c;
+      input.w = input.e;
+      wakeup(&input.r);
+      break;
     default:
       if (c != 0 && input.e - input.r < INPUT_BUF) {
         if(selecting)
@@ -633,7 +637,7 @@ consoleread(struct inode *ip, char *dst, int n)
     }
     *dst++ = c;
     --n;
-    if(c == '\n')
+    if(c == '\n' || c=='\t')
       break;
   }
   release(&cons.lock);
@@ -641,12 +645,11 @@ consoleread(struct inode *ip, char *dst, int n)
 
   return target - n;
 }
-
 int
 consolewrite(struct inode *ip, char *buf, int n)
 {
   int i;
-
+  
   iunlock(ip);
   acquire(&cons.lock);
   for(i = 0; i < n; i++)

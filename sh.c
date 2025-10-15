@@ -2,7 +2,9 @@
 
 #include "types.h"
 #include "user.h"
+#include "stat.h"
 #include "fcntl.h"
+#include "fs.h"
 
 // Parsed command representation
 #define EXEC  1
@@ -130,6 +132,118 @@ runcmd(struct cmd *cmd)
   exit();
 }
 
+char*
+fmtname(char *path)
+{
+  static char buf[DIRSIZ+1];
+  char *p;
+
+  for(p=path+strlen(path); p >= path && *p != '/'; p--)
+    ;
+  p++;
+
+  if(strlen(p) >= DIRSIZ)
+    return p;
+  memmove(buf, p, strlen(p));
+  memset(buf+strlen(p), ' ', DIRSIZ-strlen(p));
+  return buf;
+}
+
+char**
+findmatch(char *path, char *fileidx, int *count)
+{
+  char buf[512], *p;
+  int fd;
+  struct dirent de;
+  struct stat st;
+
+  char **matches = malloc(128 * sizeof(char*));
+  *count = 0;
+
+  if((fd = open(path, 0)) < 0){
+    printf(2, "findmatch: cannot open %s\n", path);
+    return matches;
+  }
+
+  if(fstat(fd, &st) < 0){
+    printf(2, "findmatch: cannot stat %s\n", path);
+    close(fd);
+    return matches;
+  }
+
+  if(st.type != T_DIR){
+    if(isprefix(fmtname(path), fileidx)){
+      int len = strlen(path);
+      matches[*count] = malloc(len + 1);
+      strcpy(matches[*count], path);
+      (*count)++;
+    }
+    close(fd);
+    return matches;
+  }
+  //case T_DIR:
+  if(strlen(path) + 1 + DIRSIZ + 1 > sizeof buf){
+    close(fd);
+    return matches;
+  }
+
+  strcpy(buf, path);
+  p = buf + strlen(buf);
+  *p++ = '/';
+
+  while(read(fd, &de, sizeof(de)) == sizeof(de)){
+    if(de.inum == 0)
+      continue;
+
+    memmove(p, de.name, DIRSIZ);
+    p[DIRSIZ] = 0;
+
+    if(stat(buf, &st) < 0)
+      continue;
+
+    if(isprefix(fmtname(buf), fileidx)){
+      int len = strlen(buf);
+      matches[*count] = malloc(len + 1);
+      strcpy(matches[*count], buf);
+      (*count)++;
+    }
+  }
+
+  close(fd);
+  return matches;
+}
+
+int completecmd(char *buf)
+{
+  if (!strlen(buf))
+    return 0;
+  int matchcount = 0;
+  char *fileidx = buf;
+  char **list = findmatch(".", fileidx, &matchcount);
+
+  // printf(1, "   match: %d\n", matchcount);
+  if (matchcount == 1)
+  {
+    int buflen = strlen(buf);
+    printf(1,list[0] + 2 + buflen);
+    strcpy(buf + buflen, list[0] + 2 + buflen);
+  }
+  else if (matchcount > 1)
+  {
+    printf(1, "\n");
+    for (int i=0;i<matchcount;i++){
+      printf(1,list[i]+2);
+      printf(1, "   ");
+    }
+    printf(1,"\n");
+  }
+
+  for (int i = 0; i < matchcount; i++)
+    free(list[i]);
+  free(list);
+  return strlen(buf);
+}
+
 int
 getcmd(char *buf, int nbuf)
 {
@@ -162,6 +276,11 @@ main(void)
       buf[strlen(buf)-1] = 0;  // chop \n
       if(chdir(buf+3) < 0)
         printf(2, "cannot cd %s\n", buf+3);
+      continue;
+    }
+    if(buf[strlen(buf)-1] == '\t'){
+      buf[strlen(buf)-1] = '\0';
+      completecmd(buf);
       continue;
     }
     if(fork1() == 0)
