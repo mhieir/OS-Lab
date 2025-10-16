@@ -210,6 +210,7 @@ typedef struct {
   uint w;
   uint e;
   uint cur;
+  uint rtil; // read till
 } input_state_t;
 
 static input_state_t input;
@@ -574,9 +575,12 @@ consoleintr(int (*getc)(void))
       modified = 1;
       break;
     case '\t': // Tab key
-      input.buf[input.e++ % INPUT_BUF] = c;
-      input.w = input.e;
-      wakeup(&input.r);
+      if(input.cur == input.e){
+        input.buf[input.e++ % INPUT_BUF] = c;
+        // reach_graphic_cursor_to(input.w);
+        input.rtil = input.e;
+        wakeup(&input.r);
+      }
       break;
     default:
       if (c != 0 && input.e - input.r < INPUT_BUF) {
@@ -587,6 +591,7 @@ consoleintr(int (*getc)(void))
 
         if (c == '\n' || input.e == input.r + INPUT_BUF) {
           input.w = input.e;
+          input.rtil = input.e;
           input.cur = input.e;
           clear_history();
           modified = 0;
@@ -618,7 +623,7 @@ consoleread(struct inode *ip, char *dst, int n)
   target = n;
   acquire(&cons.lock);
   while(n > 0){
-    while(input.r == input.w){
+    while(input.r == input.rtil){
       if(myproc()->killed){
         release(&cons.lock);
         ilock(ip);
@@ -647,19 +652,42 @@ consoleread(struct inode *ip, char *dst, int n)
 
   return target - n;
 }
+int tabcomplete = 0;
+int writelen = 0;
 int
 consolewrite(struct inode *ip, char *buf, int n)
 {
   int i;
   char c;
-  
+
   iunlock(ip);
   acquire(&cons.lock);
   for(i = 0; i < n; i++){
     c = buf[i] & 0xff;
-    // if (c=='\t')
-    //   continue;
-    consputc(c);
+    if(tabcomplete == 0 && c == '\t') {
+      tabcomplete = 1;
+      input.e--; // for the tab that is at the end of the buffer now
+      continue;
+    }
+    if(tabcomplete) {
+      if (c != '\t') {
+        uint old_cur = input.cur;
+        
+        // insert_char_at_cursor('0' + writelen);
+        insert_char_at_cursor(c);
+        writelen++;
+      }
+      else{
+        tabcomplete = 0;
+        writelen = 0;
+        input.r = input.w;
+        
+      }
+      continue;
+    } 
+    else {
+      consputc(c);
+    }
   }
   release(&cons.lock);
   ilock(ip);

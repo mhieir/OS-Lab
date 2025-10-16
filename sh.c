@@ -220,28 +220,33 @@ int completecmd(char *buf)
   int matchcount = 0;
   char **list = findmatch(".", buf, &matchcount);
 
-  // printf(1, "   match: %d\n", matchcount);
-  if (matchcount == 1)
-  {
-    int buflen = strlen(buf);
-    printf(1,"%s",list[0] + 2 + buflen);
-    strcpy(buf + buflen, list[0] + 2 + buflen);
-  }
-  else if (matchcount > 1)
-  {
-    printf(1, "\n");
-    for (int i=0;i<matchcount;i++){
-      printf(1,"%s",list[i]+2);
-      printf(1, "   ");
-    }
-    printf(1,"\n$");
-    printf(1,"%s",buf);
-  }
-
-  for (int i = 0; i < matchcount; i++)
-    free(list[i]);
-  free(list);
+  char* result;
+  int buflen = strlen(buf);
+  if (matchcount == 1) {
+    int matchlen = strlen(list[0]);
+    // If a single match is found, complete the command
+    result = malloc(buflen + matchlen + 3);
+    strcpy(result, "\t");
+    // strcpy(result + 1, buf);
+    // strcpy(result + 1 + buflen, "\t");
+    strcpy(result + 1, list[0] + 2 + buflen);
+    strcpy(result + 1 + strlen(list[0]) - buflen - 2 + 1, "\t");
+  } 
+  printf(1, "%s", result);
+  free(result);
   return strlen(buf);
+  // else if (matchcount > 1) {
+  //   printf(1,"\n$ ");
+  //   // result = malloc(buflen + matchlen + 3);
+  //   strcpy(result, "\t\t");
+  //   // strcpy(result + 2, buf);
+  //   // strcpy(result + 2 + buflen, match + fileidxlen);
+  // } 
+  // else {
+  //   result = malloc(buflen + 2);
+  //   strcpy(result, "\t");
+  //   strcpy(result + 1, buf);
+  // }
 }
 
 int
