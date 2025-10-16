@@ -577,15 +577,21 @@ consoleintr(int (*getc)(void))
     case '\t': // Tab key
       if(input.cur == input.e){
         input.buf[input.e++ % INPUT_BUF] = c;
+        // input.w = input.e;
         // reach_graphic_cursor_to(input.w);
         input.rtil = input.e;
         wakeup(&input.r);
       }
       break;
     default:
-      if (c != 0 && input.e - input.r < INPUT_BUF) {
-        if(selecting)
-          delete_selection();
+    crt[0] = (('0' + input.e)&0xff) | 0x0700;
+    crt[1] = (('0' + input.cur)&0xff) | 0x0700;
+    crt[2] = (('0' + input.r)&0xff) | 0x0700;
+    crt[3] = ((c)&0xff) | 0x0700;
+    if (c != 0 && input.e - input.r < INPUT_BUF) {
+      
+      if(selecting)
+      delete_selection();
         insert_char_at_cursor(c);
         modified = 1;
 
@@ -666,27 +672,32 @@ consolewrite(struct inode *ip, char *buf, int n)
     c = buf[i] & 0xff;
     if(tabcomplete == 0 && c == '\t') {
       tabcomplete = 1;
+      // insert_char_at_cursor('+');
       input.e--; // for the tab that is at the end of the buffer now
       continue;
     }
-    if(tabcomplete) {
-      if (c != '\t') {
-        uint old_cur = input.cur;
-        
-        // insert_char_at_cursor('0' + writelen);
-        insert_char_at_cursor(c);
-        writelen++;
-      }
-      else{
-        tabcomplete = 0;
-        writelen = 0;
-        input.r = input.w;
-        
-      }
+    if(tabcomplete == 1 && c != '\t') {
+      // consputc(c);
+      crt[0] = (('0' + input.e)&0xff) | 0x0700;
+      crt[1] = (('0' + input.cur)&0xff) | 0x0700;
+      crt[2] = (('0' + input.r)&0xff) | 0x0700;
+      insert_char_at_cursor(c);
+      // consputc('0' + input.e);
+      writelen++;
+      continue;
+    }
+    if(tabcomplete == 1 && c == '\t') {
+      crt[4] = (('0')&0xff) | 0x0700;
+      tabcomplete = 0;
+      writelen = 0;
+      input.r = input.w;
+      input.rtil = input.w;
+    
       continue;
     } 
     else {
       consputc(c);
+      // consputc('7');
     }
   }
   release(&cons.lock);
