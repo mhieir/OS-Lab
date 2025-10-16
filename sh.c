@@ -213,58 +213,84 @@ findmatch(char *path, char *fileidx, int *count)
   return matches;
 }
 
-int completecmd(char *buf)
+int completecmd(char *buf, char ** list, int matchcount)
 {
   if (!strlen(buf))
     return 0;
-  int matchcount = 0;
-  char **list = findmatch(".", buf, &matchcount);
 
   char* result;
   int buflen = strlen(buf);
   if (matchcount == 1) {
     int matchlen = strlen(list[0]);
-    // If a single match is found, complete the command
-    result = malloc(buflen + matchlen + 3);
+    result = malloc(matchlen + 3);
     strcpy(result, "\t");
-    // strcpy(result + 1, buf);
-    // strcpy(result + 1 + buflen, "\t");
     strcpy(result + 1, list[0] + buflen + 2);
     strcpy(result + 1 + strlen(list[0]) - buflen - 2, "\t");
   } 
+  else if(matchcount == 0){
+    result = malloc(3);
+    strcpy(result, "\t");
+    strcpy(result + 1, "\t");
+  }
+  // else if (matchcount > 1) {
+  //   result = malloc(3);
+  //   strcpy(result, "\t\t");
+  // return;
+  // } 
+
   printf(1, "%s", result);
   free(result);
-  return strlen(buf);
-  // else if (matchcount > 1) {
-  //   printf(1,"\n$ ");
-  //   // result = malloc(buflen + matchlen + 3);
-  //   strcpy(result, "\t\t");
-  //   // strcpy(result + 2, buf);
-  //   // strcpy(result + 2 + buflen, match + fileidxlen);
-  // } 
-  // else {
-  //   result = malloc(buflen + 2);
-  //   strcpy(result, "\t");
-  //   strcpy(result + 1, buf);
-  // }
+  //free list
+  return matchcount;
 }
 
 int
-getcmd(int st, char *buf, int nbuf)
+getcmd(char *buf, int nbuf)
 { 
-  if(st == 0){
     printf(2, "$ ");
     memset(buf, 0, nbuf);
-  }
-  gets(0, buf, nbuf);
-  if(buf[0] == 0) // EOF
-    return -1;
-  
-  int len = strlen(buf);
-  if(buf[len -1] == '\t'){
-    buf[len-1] = '\0';
-    completecmd(buf);
-    getcmd(1, buf, nbuf);
+
+
+  int matchcount = 0;
+  char **list;
+  char *last_cmd;
+  int tab_seen = 0;
+
+  for(;;){
+    gets(buf, nbuf);
+    if(buf[0] == 0) // EOF
+      return -1;
+    int len = strlen(buf);
+    if (buf[len-1] == '\n' || buf[len-1] == '\r')
+      return 0;
+
+    if(buf[len-1] == '\t'){
+      if(!tab_seen){
+        buf[len-1] = '\0';
+        list = findmatch(".", buf, &matchcount);
+        if (matchcount > 1) {
+          last_cmd = malloc(len-1);
+          strcpy(last_cmd, buf);
+          printf(1, "\t\t");
+          tab_seen = 1;
+        }
+        else completecmd(buf, list, matchcount);
+      }
+      else{
+        printf(1, "\t\t");
+        printf(1, "\n");
+        for (int i=0;i<matchcount;i++){
+          printf(1,"%s",list[i]+2);
+          printf(1, "   ");
+        }
+        printf(1,"\n$ ");
+        printf(1,"%s", last_cmd);
+        free(last_cmd);
+        tab_seen = 0;
+      }
+      //free list
+    }
+    
   }
   return 0;
 }
@@ -284,7 +310,7 @@ main(void)
   }
 
   // Read and run input commands.
-  while(getcmd(0,buf, sizeof(buf)) >= 0){
+  while(getcmd(buf, sizeof(buf)) >= 0){
     printf(1,"the command is: %s \n" ,buf);
     if(buf[0] == 'c' && buf[1] == 'd' && buf[2] == ' '){
       // Chdir must be called by the parent, not the child.

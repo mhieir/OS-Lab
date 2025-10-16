@@ -502,7 +502,7 @@ static void paste_clipboard(void) {
   }
 }
 
-
+int cnt_tab = 0;
 void
 consoleintr(int (*getc)(void))
 {
@@ -512,6 +512,8 @@ consoleintr(int (*getc)(void))
   acquire(&cons.lock);
   while ((c = getc()) >= 0) {
     modified = 0; 
+    if(c != '\t')
+      cnt_tab = 0;
     switch (c) {
     case C('P'):
       doprocdump = 1;
@@ -575,19 +577,27 @@ consoleintr(int (*getc)(void))
       modified = 1;
       break;
     case '\t': // Tab key
+      cnt_tab++;
       if(input.cur == input.e){
-        input.buf[input.e++ % INPUT_BUF] = c;
-        // input.w = input.e;
-        // reach_graphic_cursor_to(input.w);
-        input.rtil = input.e;
+        if(cnt_tab == 1){
+          input.buf[input.e++ % INPUT_BUF] = c;
+          input.rtil = input.e;
+        }
+        else{
+          input.buf[input.e++ % INPUT_BUF] = c;
+          input.rtil = input.w;
+          input.r = input.w;
+        }
+        // crt[0] = (('0' + input.r)&0xff) | 0x0700;
+        // crt[1] = (('0' + input.w)&0xff) | 0x0700;
+        // crt[2] = (('0' + input.cur)&0xff) | 0x0700;
+        // crt[3] = (('0' + input.e)&0xff) | 0x0700;
+        // crt[4] = (('0' + input.rtil)&0xff) | 0x0700;
+        // crt[5] = ((c)&0xff) | 0x0700;
         wakeup(&input.r);
       }
       break;
     default:
-    crt[0] = (('0' + input.e)&0xff) | 0x0700;
-    crt[1] = (('0' + input.cur)&0xff) | 0x0700;
-    crt[2] = (('0' + input.r)&0xff) | 0x0700;
-    crt[3] = ((c)&0xff) | 0x0700;
     if (c != 0 && input.e - input.r < INPUT_BUF) {
       
       if(selecting)
@@ -659,7 +669,6 @@ consoleread(struct inode *ip, char *dst, int n)
   return target - n;
 }
 int tabcomplete = 0;
-int writelen = 0;
 int
 consolewrite(struct inode *ip, char *buf, int n)
 {
@@ -672,24 +681,20 @@ consolewrite(struct inode *ip, char *buf, int n)
     c = buf[i] & 0xff;
     if(tabcomplete == 0 && c == '\t') {
       tabcomplete = 1;
-      // insert_char_at_cursor('+');
       input.e--; // for the tab that is at the end of the buffer now
       continue;
     }
     if(tabcomplete == 1 && c != '\t') {
-      // consputc(c);
-      crt[0] = (('0' + input.e)&0xff) | 0x0700;
-      crt[1] = (('0' + input.cur)&0xff) | 0x0700;
-      crt[2] = (('0' + input.r)&0xff) | 0x0700;
+      crt[0] = (('0' + input.r)&0xff) | 0x0700;
+      crt[1] = (('0' + input.w)&0xff) | 0x0700;
+      crt[2] = (('0' + input.cur)&0xff) | 0x0700;
+      crt[3] = (('0' + input.e)&0xff) | 0x0700;
       insert_char_at_cursor(c);
-      // consputc('0' + input.e);
-      writelen++;
       continue;
     }
     if(tabcomplete == 1 && c == '\t') {
-      crt[4] = (('0')&0xff) | 0x0700;
+      crt[5] = (('-')&0xff) | 0x0700;
       tabcomplete = 0;
-      writelen = 0;
       input.r = input.w;
       input.rtil = input.w;
     
@@ -697,7 +702,6 @@ consolewrite(struct inode *ip, char *buf, int n)
     } 
     else {
       consputc(c);
-      // consputc('7');
     }
   }
   release(&cons.lock);
