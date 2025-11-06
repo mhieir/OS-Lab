@@ -175,6 +175,7 @@ UPROGS=\
 	_ln\
 	_ls\
 	_mkdir\
+	_test\
 	_simple_pid\
 	_sys_arithmetic_test\
 	_rm\
@@ -184,8 +185,8 @@ UPROGS=\
 	_wc\
 	_zombie\
 
-fs.img: mkfs README $(UPROGS)
-	./mkfs fs.img README $(UPROGS)
+fs.img: mkfs README foo $(UPROGS)
+	./mkfs fs.img README foo $(UPROGS)
 
 -include *.d
 

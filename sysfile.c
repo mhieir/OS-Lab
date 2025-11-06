@@ -442,3 +442,96 @@ sys_pipe(void)
   fd[1] = fd1;
   return 0;
 }
+
+
+static int kstrappend(char *dst, int max, const char *suffix) {
+  int n = strlen(dst), m = strlen(suffix);
+  if(n + m + 1 > max) return -1;
+  memmove(dst + n, suffix, m + 1);
+  return 0;
+}
+
+
+int filecopy(struct inode *src, struct inode *dest) {
+  const int BUF_SIZE = 512;
+  char buffer[BUF_SIZE];
+  memset(buffer, 0, BUF_SIZE);
+  
+  uint offset = 0;
+  int bytes_read;
+  
+  dest->size = 0;
+  iupdate(dest);
+  
+  while (1) {
+    bytes_read = readi(src, buffer, offset, BUF_SIZE);
+    if (bytes_read <= 0)
+      break;
+    
+    if (writei(dest, buffer, offset, bytes_read) != bytes_read) {
+      cprintf("write error in filecopy\n");
+      break;
+    }
+    offset += bytes_read;
+    memset(buffer, 0, BUF_SIZE);
+  }
+  
+  return 0;
+}
+
+int sys_make_duplicate(void) {
+  char *src_path;
+  if (argstr(0, &src_path) < 0) {
+    return -1;
+  }
+
+  char dst_path[MAXPATH];
+  safestrcpy(dst_path, src_path, sizeof(dst_path));
+  if(kstrappend(dst_path, sizeof(dst_path), "_copy") < 0)
+    return -1;
+  
+  struct inode *src = 0;
+  struct inode *dest = 0;
+  
+  begin_op();
+  
+  src = namei(src_path);
+  if (src == 0) {
+    cprintf("source file does not exist!\n");
+    end_op();
+    return -1;
+  }
+  ilock(src);
+  
+  if (src->type != T_FILE) {
+    cprintf("source is not a regular file!\n");
+    iunlockput(src);
+    end_op();
+    return -1;
+  }
+  
+  dest = namei(dst_path);
+  if (dest != 0) {
+    cprintf("file name %s exist\n", dst_path);
+    ilock(dest);
+    dest->size = 0;
+    iupdate(dest);
+  } else {
+    dest = create(dst_path, T_FILE, 0, 0);
+    if (dest == 0) {
+      cprintf("failed to create destination file\n");
+      iunlockput(src);
+      end_op();
+      return -1;
+    }
+  }
+  
+  int ret = filecopy(src, dest);
+  
+  iunlockput(dest);
+  iunlockput(src);
+  
+  end_op();
+  
+  return ret;
+}
