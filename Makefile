@@ -176,6 +176,7 @@ UPROGS=\
 	_ls\
 	_mkdir\
 	_simple_pid\
+	_sys_arithmetic_test\
 	_rm\
 	_sh\
 	_stressfs\

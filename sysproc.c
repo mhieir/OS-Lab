@@ -89,3 +89,15 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+int
+sys_simple_arithmetic_syscall(void)
+{
+    int a, b;
+    a = myproc()->tf->ebx;
+    b = myproc()->tf->ecx;
+
+    int result = (a + b) * (a - b);
+    cprintf("Kernel: calc || (%d+%d)*(%d-%d) = %d\n", a, b, a, b, result);
+    return result;
+}
