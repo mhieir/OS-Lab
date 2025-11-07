@@ -26,6 +26,9 @@ int uptime(void);
 int simple_arithmetic_syscall(int a, int b);
 int make_duplicate(const char *src_file);
 int show_process_family(int pid);
+int grep_syscall(const char* keyword, const char* filename, char* user_buffer, int buffer_size);
+int set_priority_syscall(int pid, int priority);
+
 
 // ulib.c
 int stat(const char*, struct stat*);
