@@ -178,6 +178,7 @@ UPROGS=\
 	_make_duplicate\
 	_simple_pid\
 	_sys_arithmetic_test\
+	_test_family\
 	_rm\
 	_sh\
 	_stressfs\

@@ -532,3 +532,53 @@ procdump(void)
     cprintf("\n");
   }
 }
+
+int
+show_process_family_internal(int pid)
+{
+  struct proc *p;
+  struct proc *target = 0;
+
+  acquire(&ptable.lock);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+    if(p->pid == pid) {
+      target = p;
+      break;
+    }
+  }
+
+  if(target == 0){
+    release(&ptable.lock);
+    cprintf("No process found with pid %d\n", pid);
+    return -1;
+  }
+
+  cprintf("My id: %d, My parent id: %d\n",
+          target->pid, target->parent ? target->parent->pid : -1);
+
+  cprintf("Children of process %d:\n", target->pid);
+  int has_child = 0;
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->parent == target){
+      cprintf("   Child pid: %d\n", p->pid);
+      has_child = 1;
+    }
+  }
+  if(!has_child)
+    cprintf("   No children.\n");
+
+  cprintf("Siblings of process %d:\n", target->pid);
+  int has_sibling = 0;
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->parent && p->parent == target->parent && p != target){
+      cprintf("   Sibling pid: %d\n", p->pid);
+      has_sibling = 1;
+    }
+  }
+  if(!has_sibling)
+    cprintf("   No siblings.\n");
+
+  release(&ptable.lock);
+
+  return 0;
+}
