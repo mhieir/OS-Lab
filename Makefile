@@ -175,7 +175,7 @@ UPROGS=\
 	_ln\
 	_ls\
 	_mkdir\
-	_test\
+	_make_duplicate\
 	_simple_pid\
 	_sys_arithmetic_test\
 	_rm\

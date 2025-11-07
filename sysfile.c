@@ -464,10 +464,10 @@ filecopy(struct inode *src, struct inode *dest)
     if(tot + m > src->size)
       m = src->size - tot;
     if((r = readi(src, buf, tot, m)) != m){
-      return -1;
+      return 1;
     }
     if(writei(dest, buf, tot, m) != m){
-      return -1;
+      return 1;
     }
   }
   return 0;
@@ -482,12 +482,12 @@ sys_make_duplicate(void)
   int r;
 
   if(argstr(0, &path) < 0)
-    return -1;
+    return 1;
 
   if(safestrcpy(newpath, path, MAXPATH) == 0)
-    return -1;
+    return 1;
   if(kstrappend(newpath, MAXPATH, "_copy") < 0)
-    return -1;
+    return 1;
 
   begin_op();
 
@@ -500,13 +500,13 @@ sys_make_duplicate(void)
   if(ip->type != T_FILE){
     iunlockput(ip);
     end_op();
-    return -1;
+    return 1;
   }
 
   if((dp = create(newpath, T_FILE, 0, 0)) == 0){
     iunlockput(ip);
     end_op();
-    return -1;
+    return 1;
   }
 
   r = filecopy(ip, dp);
