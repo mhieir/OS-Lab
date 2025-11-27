@@ -88,6 +88,7 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  p->creation_time = ticks;
 
   release(&ptable.lock);
 
@@ -319,39 +320,74 @@ wait(void)
 //  - swtch to start running that process
 //  - eventually that process transfers control
 //      via swtch back to the scheduler.
+// file: proc.c
+
 void
 scheduler(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
+  struct proc *min_p; // To store the process with the smallest ctime
+
   c->proc = 0;
   
   for(;;){
     // Enable interrupts on this processor.
     sti();
 
-    // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
-        continue;
 
-      // Switch to chosen process.  It is the process's job
-      // to release ptable.lock and then reacquire it
-      // before jumping back to us.
-      c->proc = p;
-      switchuvm(p);
-      p->state = RUNNING;
+    // Check if this is an Odd CPU (P-core) 
+    // Assuming cpuid() returns the ID (0, 1, 2, 3...)
+    if(cpuid() % 2 != 0){ 
+      
+      // --- ODD CORE LOGIC (FCFS by Creation Time) ---
+      
+      min_p = 0;
 
-      swtch(&(c->scheduler), p->context);
-      switchkvm();
+      // 1. Find the RUNNABLE process with the smallest ctime
+      for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+        if(p->state != RUNNABLE)
+          continue;
 
-      // Process is done running for now.
-      // It should have changed its p->state before coming back.
-      c->proc = 0;
+        // If we haven't found a candidate yet, or this one is older (smaller ctime)
+        if(min_p == 0 || p->creation_time < min_p->creation_time){
+          min_p = p;
+        }
+      }
+
+      // 2. If we found a suitable process, run it
+      if(min_p != 0){
+        p = min_p; // Switch to the chosen process
+        
+        c->proc = p;
+        switchuvm(p);
+        p->state = RUNNING;
+
+        swtch(&(c->scheduler), p->context);
+        
+        switchkvm();
+        c->proc = 0;
+      }
+    } 
+    else {
+      // --- EVEN CORE LOGIC (Standard Round Robin or E-core Logic) ---
+      // This is the default xv6 loop, you likely keep this for Even cores
+      for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+        if(p->state != RUNNABLE)
+          continue;
+
+        c->proc = p;
+        switchuvm(p);
+        p->state = RUNNING;
+
+        swtch(&(c->scheduler), p->context);
+        switchkvm();
+        c->proc = 0;
+      }
     }
-    release(&ptable.lock);
 
+    release(&ptable.lock);
   }
 }
 
