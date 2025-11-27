@@ -54,6 +54,17 @@ trap(struct trapframe *tf)
       wakeup(&ticks);
       release(&tickslock);
     }
+    if(myproc() != 0){
+      myproc()->ticks_run++;
+
+      cprintf("Tick: PID %d, ticks_run %d\n", myproc()->pid, myproc()->ticks_run);
+
+      if(myproc()->ticks_run >= TIME_QUANTUM){
+          myproc()->ticks_run = 0;
+          myproc()->state = RUNNABLE;
+          yield();
+      }
+    }
     lapiceoi();
     break;
   case T_IRQ0 + IRQ_IDE:

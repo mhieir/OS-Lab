@@ -319,6 +319,8 @@ wait(void)
 //  - swtch to start running that process
 //  - eventually that process transfers control
 //      via swtch back to the scheduler.
+
+int last_selected_process = 0;
 void
 scheduler(void)
 {
@@ -332,15 +334,18 @@ scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
+    for(int i =last_selected_process + 1; (i%NPROC)!= last_selected_process; i++){
+      if(ptable.proc[i].state != RUNNABLE)
         continue;
 
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
+      p = &ptable.proc[i%NPROC];
+      last_selected_process = i%NPROC;
       c->proc = p;
       switchuvm(p);
+      p->ticks_run = 0;
       p->state = RUNNING;
 
       swtch(&(c->scheduler), p->context);
