@@ -2,32 +2,43 @@
 #include "stat.h"
 #include "user.h"
 
-void spin(int count) {
+// A heavy loop to consume CPU time
+void spin_cpu() {
   int i;
-  for(i = 0; i < count; i++) {
-    asm("nop");
+  int j;
+  for (i = 0; i < 5000000; i++) {
+    j = i * i; // Just burn CPU cycles
   }
 }
 
 int main(int argc, char *argv[]) {
-  int i;
-  int pids[5];
+  int n_children = 5;
+  int pid;
 
-  printf(1, "Starting FCFS Test...\n");
+  printf(1, "Starting FCFS Creation Time Test...\n");
 
-  for (i = 0; i < 5; i++) {
-    pids[i] = fork();
-
-    if (pids[i] == 0) {
-      spin(100000000);
-      printf(1, "Child %d (Index %d) finished.\n", getpid(), i);
+  for (int i = 0; i < n_children; i++) {
+    pid = fork();
+    
+    if (pid < 0) {
+      printf(1, "Fork failed\n");
+    } else if (pid == 0) {
+      // --- CHILD PROCESS ---
+      // We are the child. We want to be CPU intensive.
+      // The child created first (i=0) has the smallest ctime.
+      
+      spin_cpu(); 
+      printf(1, "Child %d (Created #%d) finished execution.\n", getpid(), i + 1);
       exit();
     } else {
-      sleep(1); 
+      // --- PARENT PROCESS ---
+      // Sleep briefly to ensure the next child has a distinctly later 'ctime'
+      sleep(10); 
     }
   }
 
-  for (i = 0; i < 5; i++) {
+  // Parent waits for all children
+  for (int i = 0; i < n_children; i++) {
     wait();
   }
 
