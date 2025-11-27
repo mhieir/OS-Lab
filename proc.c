@@ -320,8 +320,8 @@ wait(void)
 //  - eventually that process transfers control
 //      via swtch back to the scheduler.
 
-int last_selected_process = 0;
-void
+int last_selected_process = -1;
+void 
 scheduler(void)
 {
   struct proc *p;
@@ -329,34 +329,41 @@ scheduler(void)
   c->proc = 0;
   
   for(;;){
-    // Enable interrupts on this processor.
-    sti();
-
+    sti(); // Enable interrupts
+    
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    for(int i =last_selected_process + 1; (i%NPROC)!= last_selected_process; i++){
-      if(ptable.proc[i].state != RUNNABLE)
+    int start_index = last_selected_process;
+
+    for(int i = 0; i < NPROC; i++){
+      int idx = (start_index + 1 + i) % NPROC;
+      
+      p = &ptable.proc[idx];
+      
+      if(p->state != RUNNABLE)
         continue;
 
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
-      p = &ptable.proc[i%NPROC];
-      last_selected_process = i%NPROC;
       c->proc = p;
       switchuvm(p);
       p->ticks_run = 0;
       p->state = RUNNING;
+      
+      last_selected_process = idx;
 
       swtch(&(c->scheduler), p->context);
       switchkvm();
-
+      
       // Process is done running for now.
       // It should have changed its p->state before coming back.
       c->proc = 0;
+      
+      break; 
     }
+    
     release(&ptable.lock);
-
   }
 }
 
