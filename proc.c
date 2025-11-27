@@ -320,59 +320,43 @@ wait(void)
 //  - swtch to start running that process
 //  - eventually that process transfers control
 //      via swtch back to the scheduler.
-// file: proc.c
-
 void
 scheduler(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
-  struct proc *min_p; // To store the process with the smallest ctime
-
   c->proc = 0;
   
+
   for(;;){
     // Enable interrupts on this processor.
     sti();
 
+    // Loop over process table looking for process to run.
     acquire(&ptable.lock);
 
-    // Check if this is an Odd CPU (P-core) 
-    // Assuming cpuid() returns the ID (0, 1, 2, 3...)
-    if(cpuid() % 2 != 0){ 
-      
-      // --- ODD CORE LOGIC (FCFS by Creation Time) ---
-      
+    if(cpuid() % 2 != 0){
+      struct proc *min_p;
       min_p = 0;
-
-      // 1. Find the RUNNABLE process with the smallest ctime
       for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
         if(p->state != RUNNABLE)
           continue;
-
-        // If we haven't found a candidate yet, or this one is older (smaller ctime)
         if(min_p == 0 || p->creation_time < min_p->creation_time){
           min_p = p;
         }
       }
 
-      // 2. If we found a suitable process, run it
       if(min_p != 0){
-        p = min_p; // Switch to the chosen process
-        
+        p = min_p;
         c->proc = p;
         switchuvm(p);
         p->state = RUNNING;
-
         swtch(&(c->scheduler), p->context);
-        
         switchkvm();
         c->proc = 0;
       }
-    } 
+    }
     else {
-      // --- EVEN CORE LOGIC (Standard Round Robin or E-core Logic) ---
-      // This is the default xv6 loop, you likely keep this for Even cores
       for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
         if(p->state != RUNNABLE)
           continue;
