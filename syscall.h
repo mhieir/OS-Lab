@@ -22,3 +22,4 @@
 #define SYS_close  21
 #define SYS_start  22
 #define SYS_end    23
+#define SYS_psinfo 24

@@ -730,3 +730,54 @@ int sys_end(void) {
 
     return 0;
 }
+
+char*
+state_to_str(enum procstate state)
+{
+    switch (state) {
+        case UNUSED: return "UNUSED   ";
+        case EMBRYO: return "EMBRYO   ";
+        case SLEEPING: return "SLEEPING ";
+        case RUNNABLE: return "RUNNABLE ";
+        case RUNNING: return "RUNNING  ";
+        case ZOMBIE: return "ZOMBIE   ";
+        default: return "UNKNOWN  ";
+    }
+}
+
+int
+sys_psinfo(void)
+{
+    struct proc *p;
+    cprintf("\n--- Process Information ---\n");
+    cprintf("--------------------------------------\n");
+
+    acquire(&ptable.lock); 
+
+    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+        if (p->state != UNUSED) {
+            
+            acquire(&tickslock);
+            uint current_tick = ticks;
+            release(&tickslock);
+
+            uint elapsed_ticks = 0;
+            if (p->creation_time > 0 && current_tick >= p->creation_time) {
+                elapsed_ticks = current_tick - p->creation_time;
+            }
+
+            cprintf("PID: %d STATUS: %s PARENT: %d NAME: %s ELAPSED (ticks): %d\n",
+                    p->pid,
+                    state_to_str(p->state),
+                    (p->parent) ? p->parent->pid : 0,
+                    p->name,
+                    elapsed_ticks);
+           
+        }
+    }
+
+    release(&ptable.lock);
+    cprintf("------------------------------------\n\n");
+    
+    return 0;
+}

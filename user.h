@@ -39,3 +39,4 @@ void free(void*);
 int atoi(const char*);
 int start(void);
 int end(void);
+int psinfo(void);

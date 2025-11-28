@@ -57,7 +57,7 @@ trap(struct trapframe *tf)
     if(myproc() != 0){
       myproc()->ticks_run++;
 
-      cprintf("Tick: PID %d,cpu : %s ,ticks_run %d, ticks =%d \n", myproc()->pid, (cpuid()%2?"Odd":"Even"), myproc()->ticks_run, ticks);
+      // cprintf("Tick: PID %d,cpu : %s ,ticks_run %d, ticks =%d \n", myproc()->pid, (cpuid()%2?"Odd":"Even"), myproc()->ticks_run, ticks);
 
       // if((myproc()->ticks_run) >= TIME_QUANTUM){
       //     myproc()->ticks_run = 0;
