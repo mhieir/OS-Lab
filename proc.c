@@ -543,3 +543,13 @@ procdump(void)
     cprintf("\n");
   }
 }
+
+int sys_start(void) {
+    //todo
+    return 0;
+}
+
+int sys_end(void) {
+    //todo
+    return 0;
+}

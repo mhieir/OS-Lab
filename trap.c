@@ -57,7 +57,7 @@ trap(struct trapframe *tf)
     if(myproc() != 0){
       myproc()->ticks_run++;
 
-      cprintf("Tick: PID %d, ticks_run %d, ticks =%d \n", myproc()->pid, myproc()->ticks_run, ticks);
+      cprintf("Tick: PID %d,cpu : %s ,ticks_run %d, ticks =%d \n", myproc()->pid, (cpuid()%2?"Odd":"Even"), myproc()->ticks_run, ticks);
 
       // if((myproc()->ticks_run) >= TIME_QUANTUM){
       //     myproc()->ticks_run = 0;
@@ -118,7 +118,7 @@ trap(struct trapframe *tf)
   
   if(myproc() && myproc()->state == RUNNING &&
      tf->trapno == T_IRQ0+IRQ_TIMER){
-      if((myproc()->ticks_run) >= TIME_QUANTUM){
+      if(((myproc()->ticks_run) >= TIME_QUANTUM) && cpuid()%2==0){
           myproc()->ticks_run = 0;
           myproc()->state = RUNNABLE;
           cprintf("YIELD: PID %d,\n", myproc()->pid);
