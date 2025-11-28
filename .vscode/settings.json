@@ -58,6 +58,7 @@
   "C_Cpp_Runner.msvcSecureNoWarnings": false,
   "files.associations": {
     "locale": "c",
-    "string": "c"
+    "string": "c",
+    "stat.h": "c"
   }
 }

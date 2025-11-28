@@ -15,6 +15,8 @@ struct {
 static struct proc *initproc;
 
 int nextpid = 1;
+int measuring = 0;
+uint start_tick;
 extern void forkret(void);
 extern void trapret(void);
 
@@ -255,7 +257,10 @@ exit(void)
   struct proc *curproc = myproc();
   struct proc *p;
   int fd;
-
+  if (measuring) {
+    
+    myproc()->completed_in_interval = 1;
+  }
   if(curproc == initproc)
     panic("init exiting");
 
@@ -488,7 +493,7 @@ scheduler(void)
   for(;;){
     sti();
     acquire(&ptable.lock);
-    balance_load(c);
+    // balance_load(c);
     if(c->apicid % 2 == 0) scheduler_even_rr(c);
     else scheduler_odd_fcfs(c);
     release(&ptable.lock);
@@ -679,11 +684,49 @@ procdump(void)
 }
 
 int sys_start(void) {
-    //todo
+    acquire(&tickslock);
+    start_tick = ticks;
+    release(&tickslock);
+
+    measuring = 1;
+
+    struct proc *p;
+    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+        p->completed_in_interval = 0;
+    }
     return 0;
 }
 
 int sys_end(void) {
-    //todo
+    if (!measuring) {
+        cprintf("Error: Measurement not started.\n");
+        return -1;
+    }
+    measuring = 0;
+
+    acquire(&tickslock);
+    uint end_tick = ticks;
+    release(&tickslock);
+    uint total_ticks = end_tick - start_tick;
+
+    int completed_count = 0;
+    struct proc *p;
+    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+        if (p->completed_in_interval) {
+            completed_count++;
+        }
+    }
+
+    cprintf("--- Throughput Measurement ---\n");
+    cprintf("Total Ticks: %d\n", total_ticks);
+    cprintf("Completed Processes: %d\n", completed_count);
+
+    if (total_ticks > 0) {
+      cprintf("Throughput (Completed/Tick): %d / %d\n", 
+              completed_count, total_ticks);
+    } else {
+      cprintf("Time interval too short (0 ticks).\n");
+    }
+
     return 0;
 }
