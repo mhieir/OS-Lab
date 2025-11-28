@@ -3,39 +3,42 @@
 #include "user.h"
 
 int main(int argc, char *argv[]) {
-  int n_children = 8; // Create 8 processes to ensure E-core is heavy
+  // Ensure we create enough load to trigger "My_Load >= P_Load + 3"
+  int n_children = 8; 
   int pid;
 
   printf(1, "--- Starting Load Balancing Test ---\n");
+  printf(1, "Parent is creating %d children...\n", n_children);
 
   for (int i = 0; i < n_children; i++) {
     pid = fork();
     if (pid == 0) {
       // --- CHILD PROCESS ---
-      // Instead of a loop count, we wait for time to pass.
-      // We want to live for ~200 ticks (approx 2 seconds)
+      // use volatile so the compiler doesn't delete the loop
+      volatile int x = 0; 
       int start_time = uptime();
+      
+      // Run for ~200 ticks (2 seconds)
       while (uptime() - start_time < 200) {
-         // Burn CPU cycles while waiting
-         int x = 0;
-         for(int k=0; k<1000; k++) x++; 
+         x++; // Just burn CPU
       }
       
-      // Print only PID to minimize garbled text
-      printf(1, "Child %d Done\n", getpid());
+      // OPTIONAL: If you implemented the 'get_proc_info' syscall 
+      // from Section 5.5, print your CPU ID here to prove you moved.
+      // Otherwise, rely on the Kernel log.
       exit();
     }
   }
 
   // --- PARENT PROCESS ---
-  // Also stay alive so we count towards the load
+  // The parent must also stay busy so it contributes to the queue count
+  volatile int y = 0;
   int start_time = uptime();
   while (uptime() - start_time < 200) {
-     int x = 0;
-     for(int k=0; k<1000; k++) x++; 
+     y++; 
   }
 
-  // Wait for children
+  // Wait for children to finish
   for (int i = 0; i < n_children; i++) {
     wait();
   }

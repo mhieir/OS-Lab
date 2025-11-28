@@ -316,14 +316,15 @@ wait(void)
   }
 }
 
-// file: proc.c
 
-// --- START OF NEW CODE ---
+
 
 // Helper: Check if process is shell
-int is_shell(struct proc *p) {
-  if(p->name[0] == 's' && p->name[1] == 'h' && p->name[2] == 0)
-    return 1;
+int
+is_shell_proc(struct proc *p)
+{
+  // Check for "sh" 
+  if(p->name[0] == 's' && p->name[1] == 'h' && p->name[2] == 0) return 1;
   return 0;
 }
 
@@ -332,17 +333,18 @@ int is_shell(struct proc *p) {
 void
 balance_load(struct cpu *c)
 {
-  // 1. Only E-cores (Even) do the balancing
+  // 1. Only E-cores (Even ID) perform balancing [cite: 258]
   if(c->apicid % 2 != 0) 
     return;
 
-  // 2. Check 50ms Timer (assuming 1 tick = 10ms)
+  // 2. Check Timing: Run every 50ms (5 ticks) [cite: 258]
+  // Note: ticks is a global variable in xv6
   if((ticks - c->last_lb) < 5)
     return;
   
-  c->last_lb = ticks; // Reset timer
+  c->last_lb = ticks; // Update last check time
 
-  // 3. Count MY processes (E-core)
+  // 3. Count processes on THIS E-core
   struct proc *p;
   int my_load = 0;
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
@@ -350,42 +352,42 @@ balance_load(struct cpu *c)
       my_load++;
   }
 
-  // 4. Find the Lightest P-core (Odd)
-  int min_p_load = 100000;
-  int target_p_cpu = -1;
+  // 4. Find the Lightest P-core (Odd ID)
+  int min_p_load = 100000; // Start with a high number
+  int target_p_cpu_id = -1;
 
   for(int i = 0; i < ncpu; i++){
-    if(cpus[i].apicid % 2 != 0) { // If Odd (P-core)
+    // Check if it is a P-core (Odd)
+    if(cpus[i].apicid % 2 != 0) { 
       int p_load = 0;
       for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
         if(p->state == RUNNABLE && p->cpu_affinity == cpus[i].apicid)
           p_load++;
       }
-      cprintf("DEBUG: CPU %d has load %d\n", cpus[i].apicid, p_load);
       
       if(p_load < min_p_load){
         min_p_load = p_load;
-        target_p_cpu = cpus[i].apicid;
+        target_p_cpu_id = cpus[i].apicid;
       }
     }
   }
 
-  // If no P-cores exist, stop
-  if(target_p_cpu == -1) return;
+  // If no P-cores exist (e.g., CPUS=1), do nothing
+  if(target_p_cpu_id == -1) return;
 
-  cprintf("Check: E-Core Load (%d) vs P-Core Load (%d) + 3\n", my_load, min_p_load);
-
-  // 5. Threshold Logic: My Load >= Lightest P-Core + 3
+  // 5. Threshold Check: My Load >= Min_P_Load + 3 [cite: 258]
   if(my_load >= (min_p_load + 3)){
     
-    // 6. Find Victim: First Added (Oldest ctime) in MY queue
     struct proc *victim = 0;
     
+    // 6. Find Victim: First added (Oldest creation_time) logic
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      // Must be Runnable, Mine, and NOT init/sh
       if(p->state == RUNNABLE && p->cpu_affinity == c->apicid){
-        if(p->pid != 1 && !is_shell(p)){ 
-           // Logic: Pick the one with smallest ctime (Oldest)
+        
+        // Rule: Do NOT move init or sh [cite: 258]
+        if(p->pid > 2 && !is_shell_proc(p)){ 
+           
+           // Find the oldest process (simulates "first added")
            if(victim == 0 || p->creation_time < victim->creation_time){
              victim = p;
            }
@@ -393,10 +395,12 @@ balance_load(struct cpu *c)
       }
     }
 
-    // 7. Move the Victim
+    // 7. Move the process (Pushing) [cite: 250]
     if(victim != 0){
-      victim->cpu_affinity = target_p_cpu;
-      cprintf("LoadBalance: Moved PID %d from CPU %d to CPU %d\n", victim->pid, c->apicid, target_p_cpu);
+      cprintf("LoadBalance: Moving PID %d from CPU %d to CPU %d\n", 
+              victim->pid, c->apicid, target_p_cpu_id);
+              
+      victim->cpu_affinity = target_p_cpu_id;
     }
   }
 }
@@ -409,18 +413,17 @@ scheduler(void)
   c->proc = 0;
   
   for(;;){
-    // Enable interrupts on this processor.
-    sti();
+    sti(); // Enable interrupts
 
-    // Lock ptable to scan and modify queues
     acquire(&ptable.lock);
 
-    // --- EXECUTE LOAD BALANCING (Section 4.4) ---
-    balance_load(c); 
-    // --------------------------------------------
+    // --- Part 4.4: Load Balancing ---
+    // Called inside the lock to safely modify victim->cpu_affinity
+    balance_load(c);
+    // --------------------------------
 
-    // 1. EVEN CORE LOGIC (Round Robin)
-    if(c->apicid % 2 == 0){
+    if(c->apicid % 2 == 0) {
+      // --- E-Core: Round Robin --- [cite: 200]
       for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
         if(p->state != RUNNABLE) continue;
         if(p->cpu_affinity != c->apicid) continue; // Check Queue
@@ -432,12 +435,11 @@ scheduler(void)
         switchkvm();
         c->proc = 0;
       }
-    }
-    // 2. ODD CORE LOGIC (FCFS by Creation Time)
-    else {
+    } else {
+      // --- P-Core: FCFS (based on creation time) --- [cite: 230]
       struct proc *min_p = 0;
-
-      // Scan for OLDEST process in this queue
+      
+      // 1. Find the oldest runnable process for this CPU
       for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
         if(p->state != RUNNABLE) continue;
         if(p->cpu_affinity != c->apicid) continue; // Check Queue
@@ -446,7 +448,8 @@ scheduler(void)
           min_p = p;
         }
       }
-
+      
+      // 2. Run it (if found)
       if(min_p != 0){
         p = min_p;
         c->proc = p;
