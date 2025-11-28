@@ -89,6 +89,7 @@ found:
   p->state = EMBRYO;
   p->pid = nextpid++;
   p->creation_time = ticks;
+  p->cpu_affinity = 0;
 
   release(&ptable.lock);
 
@@ -125,6 +126,7 @@ userinit(void)
   extern char _binary_initcode_start[], _binary_initcode_size[];
 
   p = allocproc();
+  p->cpu_affinity = 0;
   
   initproc = p;
   if((p->pgdir = setupkvm()) == 0)
@@ -189,6 +191,8 @@ fork(void)
   if((np = allocproc()) == 0){
     return -1;
   }
+
+  np->cpu_affinity = curproc->cpu_affinity;
 
   // Copy process state from proc.
   if((np->pgdir = copyuvm(curproc->pgdir, curproc->sz)) == 0){
@@ -312,14 +316,88 @@ wait(void)
   }
 }
 
-//PAGEBREAK: 42
-// Per-CPU process scheduler.
-// Each CPU calls scheduler() after setting itself up.
-// Scheduler never returns.  It loops, doing:
-//  - choose a process to run
-//  - swtch to start running that process
-//  - eventually that process transfers control
-//      via swtch back to the scheduler.
+// file: proc.c
+
+// --- START OF NEW CODE ---
+
+// Helper: Check if process is shell
+int is_shell(struct proc *p) {
+  if(p->name[0] == 's' && p->name[1] == 'h' && p->name[2] == 0)
+    return 1;
+  return 0;
+}
+
+// Function to handle Section 4.4 Load Balancing
+// NOTE: ptable.lock is ALREADY HELD by the caller (scheduler)
+void
+balance_load(struct cpu *c)
+{
+  // 1. Only E-cores (Even) do the balancing
+  if(c->apicid % 2 != 0) 
+    return;
+
+  // 2. Check 50ms Timer (assuming 1 tick = 10ms)
+  if((ticks - c->last_lb) < 5)
+    return;
+  
+  c->last_lb = ticks; // Reset timer
+
+  // 3. Count MY processes (E-core)
+  struct proc *p;
+  int my_load = 0;
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->state == RUNNABLE && p->cpu_affinity == c->apicid)
+      my_load++;
+  }
+
+  // 4. Find the Lightest P-core (Odd)
+  int min_p_load = 100000;
+  int target_p_cpu = -1;
+
+  for(int i = 0; i < ncpu; i++){
+    if(cpus[i].apicid % 2 != 0) { // If Odd (P-core)
+      int p_load = 0;
+      for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+        if(p->state == RUNNABLE && p->cpu_affinity == cpus[i].apicid)
+          p_load++;
+      }
+      
+      if(p_load < min_p_load){
+        min_p_load = p_load;
+        target_p_cpu = cpus[i].apicid;
+      }
+    }
+  }
+
+  // If no P-cores exist, stop
+  if(target_p_cpu == -1) return;
+
+  // 5. Threshold Logic: My Load >= Lightest P-Core + 3
+  if(my_load >= (min_p_load + 3)){
+    
+    // 6. Find Victim: First Added (Oldest ctime) in MY queue
+    struct proc *victim = 0;
+    
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      // Must be Runnable, Mine, and NOT init/sh
+      if(p->state == RUNNABLE && p->cpu_affinity == c->apicid){
+        if(p->pid != 1 && !is_shell(p)){ 
+           // Logic: Pick the one with smallest ctime (Oldest)
+           if(victim == 0 || p->creation_time < victim->creation_time){
+             victim = p;
+           }
+        }
+      }
+    }
+
+    // 7. Move the Victim
+    if(victim != 0){
+      victim->cpu_affinity = target_p_cpu;
+      cprintf("LoadBalance: Moved PID %d from CPU %d to CPU %d\n", victim->pid, c->apicid, target_p_cpu);
+    }
+  }
+}
+
 void
 scheduler(void)
 {
@@ -327,20 +405,40 @@ scheduler(void)
   struct cpu *c = mycpu();
   c->proc = 0;
   
-
   for(;;){
     // Enable interrupts on this processor.
     sti();
 
-    // Loop over process table looking for process to run.
+    // Lock ptable to scan and modify queues
     acquire(&ptable.lock);
 
-    if(cpuid() % 2 != 0){
-      struct proc *min_p;
-      min_p = 0;
+    // --- EXECUTE LOAD BALANCING (Section 4.4) ---
+    balance_load(c); 
+    // --------------------------------------------
+
+    // 1. EVEN CORE LOGIC (Round Robin)
+    if(c->apicid % 2 == 0){
       for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-        if(p->state != RUNNABLE)
-          continue;
+        if(p->state != RUNNABLE) continue;
+        if(p->cpu_affinity != c->apicid) continue; // Check Queue
+
+        c->proc = p;
+        switchuvm(p);
+        p->state = RUNNING;
+        swtch(&(c->scheduler), p->context);
+        switchkvm();
+        c->proc = 0;
+      }
+    }
+    // 2. ODD CORE LOGIC (FCFS by Creation Time)
+    else {
+      struct proc *min_p = 0;
+
+      // Scan for OLDEST process in this queue
+      for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+        if(p->state != RUNNABLE) continue;
+        if(p->cpu_affinity != c->apicid) continue; // Check Queue
+
         if(min_p == 0 || p->creation_time < min_p->creation_time){
           min_p = p;
         }
@@ -351,20 +449,6 @@ scheduler(void)
         c->proc = p;
         switchuvm(p);
         p->state = RUNNING;
-        swtch(&(c->scheduler), p->context);
-        switchkvm();
-        c->proc = 0;
-      }
-    }
-    else {
-      for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-        if(p->state != RUNNABLE)
-          continue;
-
-        c->proc = p;
-        switchuvm(p);
-        p->state = RUNNING;
-
         swtch(&(c->scheduler), p->context);
         switchkvm();
         c->proc = 0;
