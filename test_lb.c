@@ -11,13 +11,9 @@ int main(int argc, char *argv[]) {
   for (int i = 0; i < n_children; i++) {
     pid = fork();
     if (pid == 0) {
-      // volatile forces the compiler to actually do the math
       volatile int x = 0; 
       int start_time = uptime();
-      
-      // Run for 200 ticks (approx 2 seconds)
       while (uptime() - start_time < 200) {
-         // Heavy math to consume CPU
          for(int k=0; k<10000; k++) {
              x = x + 1;
          }
@@ -27,7 +23,6 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  // Parent also stays busy
   volatile int y = 0;
   int start_time = uptime();
   while (uptime() - start_time < 200) {

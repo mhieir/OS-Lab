@@ -152,6 +152,7 @@ userinit(void)
   acquire(&ptable.lock);
 
   p->state = RUNNABLE;
+  p->arrival_time = ticks;
 
   release(&ptable.lock);
 }
@@ -238,6 +239,7 @@ fork(void)
   acquire(&ptable.lock);
 
   np->state = RUNNABLE;
+  np->arrival_time = ticks;
 
   release(&ptable.lock);
 
@@ -387,7 +389,7 @@ struct proc* find_victim_proc(int source_apicid)
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->state == RUNNABLE && p->cpu_affinity == source_apicid){
       if(p->pid > 2 && !is_shell_proc(p)){
-         if(victim == 0 || p->creation_time < victim->creation_time){
+         if(victim == 0 || p->arrival_time < victim->arrival_time){
            victim = p;
          }
       }
@@ -516,6 +518,7 @@ yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
   myproc()->state = RUNNABLE;
+  myproc()->arrival_time = ticks;
   sched();
   release(&ptable.lock);
 }
@@ -591,6 +594,7 @@ wakeup1(void *chan)
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     if(p->state == SLEEPING && p->chan == chan)
       p->state = RUNNABLE;
+	  p->arrival_time = ticks;
 }
 
 // Wake up all processes sleeping on chan.
@@ -617,6 +621,7 @@ kill(int pid)
       // Wake process from sleep if necessary.
       if(p->state == SLEEPING)
         p->state = RUNNABLE;
+		p->arrival_time = ticks;
       release(&ptable.lock);
       return 0;
     }
