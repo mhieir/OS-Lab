@@ -3,42 +3,39 @@
 #include "user.h"
 
 int main(int argc, char *argv[]) {
-  // Ensure we create enough load to trigger "My_Load >= P_Load + 3"
   int n_children = 8; 
   int pid;
 
   printf(1, "--- Starting Load Balancing Test ---\n");
-  printf(1, "Parent is creating %d children...\n", n_children);
 
   for (int i = 0; i < n_children; i++) {
     pid = fork();
     if (pid == 0) {
-      // --- CHILD PROCESS ---
-      // use volatile so the compiler doesn't delete the loop
+      // volatile forces the compiler to actually do the math
       volatile int x = 0; 
       int start_time = uptime();
       
-      // Run for ~200 ticks (2 seconds)
+      // Run for 200 ticks (approx 2 seconds)
       while (uptime() - start_time < 200) {
-         x++; // Just burn CPU
+         // Heavy math to consume CPU
+         for(int k=0; k<10000; k++) {
+             x = x + 1;
+         }
       }
-      
-      // OPTIONAL: If you implemented the 'get_proc_info' syscall 
-      // from Section 5.5, print your CPU ID here to prove you moved.
-      // Otherwise, rely on the Kernel log.
+      printf(1, "Child %d Done\n", getpid());
       exit();
     }
   }
 
-  // --- PARENT PROCESS ---
-  // The parent must also stay busy so it contributes to the queue count
+  // Parent also stays busy
   volatile int y = 0;
   int start_time = uptime();
   while (uptime() - start_time < 200) {
-     y++; 
+     for(int k=0; k<10000; k++) {
+         y = y + 1;
+     }
   }
 
-  // Wait for children to finish
   for (int i = 0; i < n_children; i++) {
     wait();
   }
