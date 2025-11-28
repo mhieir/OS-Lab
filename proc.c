@@ -361,6 +361,7 @@ balance_load(struct cpu *c)
         if(p->state == RUNNABLE && p->cpu_affinity == cpus[i].apicid)
           p_load++;
       }
+      cprintf("DEBUG: CPU %d has load %d\n", cpus[i].apicid, p_load);
       
       if(p_load < min_p_load){
         min_p_load = p_load;
@@ -371,6 +372,8 @@ balance_load(struct cpu *c)
 
   // If no P-cores exist, stop
   if(target_p_cpu == -1) return;
+
+  cprintf("Check: E-Core Load (%d) vs P-Core Load (%d) + 3\n", my_load, min_p_load);
 
   // 5. Threshold Logic: My Load >= Lightest P-Core + 3
   if(my_load >= (min_p_load + 3)){
