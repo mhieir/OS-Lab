@@ -53,6 +53,7 @@ struct proc {
   uint creation_time;
   int cpu_affinity;
   uint arrival_time;
+  int ticks_run;
 };
 
 // Process memory is laid out contiguously, low addresses first:

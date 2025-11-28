@@ -428,22 +428,30 @@ balance_load(struct cpu *c)
   }
 }
 
-void
-scheduler_even_rr(struct cpu *c)
-{
-  // bahareh <3
-  struct proc *p;
 
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-    if(p->state != RUNNABLE) continue;
-    if(p->cpu_affinity != c->apicid) continue; 
-    c->proc = p;
-    switchuvm(p);
-    p->state = RUNNING;
-    swtch(&(c->scheduler), p->context);
-    switchkvm();
-    c->proc = 0;
-  }
+int last_selected_process = -1;
+void scheduler_even_rr( struct cpu *c){
+  int start_index = last_selected_process;
+  struct proc *p;
+  for(int i = 0; i < NPROC; i++){
+      int idx = (start_index + 1 + i) % NPROC;
+      
+      p = &ptable.proc[idx];
+      
+      if(p->state != RUNNABLE)
+        continue;
+      c->proc = p;
+      switchuvm(p);
+      p->ticks_run = 0;
+      p->state = RUNNING;
+      
+      last_selected_process = idx;
+
+      swtch(&(c->scheduler), p->context);
+      switchkvm();
+      c->proc = 0;
+      break;
+    }
 }
 
 void
@@ -482,9 +490,9 @@ scheduler(void)
     balance_load(c);
     if(c->apicid % 2 == 0) scheduler_even_rr(c);
     else scheduler_odd_fcfs(c);
-    release(&ptable.lock);
-  }
+
 }
+
 
 // Enter scheduler.  Must hold only ptable.lock
 // and have changed proc->state. Saves and restores
@@ -665,4 +673,14 @@ procdump(void)
     }
     cprintf("\n");
   }
+}
+
+int sys_start(void) {
+    //todo
+    return 0;
+}
+
+int sys_end(void) {
+    //todo
+    return 0;
 }

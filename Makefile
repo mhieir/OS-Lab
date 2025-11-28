@@ -154,7 +154,7 @@ _forktest: forktest.o $(ULIB)
 	$(OBJDUMP) -S _forktest > forktest.asm
 
 mkfs: mkfs.c fs.h
-	gcc	 -Wall -o mkfs mkfs.c
+	gcc	-Wall -o mkfs mkfs.c
 
 # Prevent deletion of intermediate files, e.g. cat.o, after first build, so
 # that disk image changes after first build are persistent until clean.  More
@@ -180,6 +180,7 @@ UPROGS=\
 	_zombie\
 	_test_fcfs\
 	_test_lb\
+	_4_1_test\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)
