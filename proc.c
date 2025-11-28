@@ -337,6 +337,9 @@ extern uint ticks;
 void
 balance_load(struct cpu *c)
 {
+  if(c->apicid == 0 && ticks < 10) {
+    cprintf("DEBUG: ncpu=%d. I am CPU%d\n", ncpu, c->apicid);
+  }
   // 1. Only E-cores (Even)
   if(c->apicid % 2 != 0) return;
 
