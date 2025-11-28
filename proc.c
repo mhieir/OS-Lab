@@ -430,7 +430,8 @@ balance_load(struct cpu *c)
 
 
 int last_selected_process = -1;
-void scheduler_even_rr( struct cpu *c){
+void scheduler_even_rr( struct cpu *c)
+{
   int start_index = last_selected_process;
   struct proc *p;
   for(int i = 0; i < NPROC; i++){
@@ -490,6 +491,8 @@ scheduler(void)
     balance_load(c);
     if(c->apicid % 2 == 0) scheduler_even_rr(c);
     else scheduler_odd_fcfs(c);
+    release(&ptable.lock);
+  }
 
 }
 
