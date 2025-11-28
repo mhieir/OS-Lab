@@ -321,31 +321,16 @@ wait(void)
 //      via swtch back to the scheduler.
 
 int last_selected_process = -1;
-void 
-scheduler(void)
-{
-  struct proc *p;
-  struct cpu *c = mycpu();
-  c->proc = 0;
-  
-  for(;;){
-    sti(); // Enable interrupts
-    
-    // Loop over process table looking for process to run.
-    acquire(&ptable.lock);
-    int start_index = last_selected_process;
+void round_robin(struct proc *p, struct cpu *c){
+  int start_index = last_selected_process;
 
-    for(int i = 0; i < NPROC; i++){
+  for(int i = 0; i < NPROC; i++){
       int idx = (start_index + 1 + i) % NPROC;
       
       p = &ptable.proc[idx];
       
       if(p->state != RUNNABLE)
         continue;
-
-      // Switch to chosen process.  It is the process's job
-      // to release ptable.lock and then reacquire it
-      // before jumping back to us.
       c->proc = p;
       switchuvm(p);
       p->ticks_run = 0;
@@ -355,14 +340,28 @@ scheduler(void)
 
       swtch(&(c->scheduler), p->context);
       switchkvm();
-      
-      // Process is done running for now.
-      // It should have changed its p->state before coming back.
       c->proc = 0;
-      
-      break; 
+      break;
     }
-    
+}
+
+void 
+scheduler(void)
+{
+  struct proc *p;
+  struct cpu *c = mycpu();
+  c->proc = 0;
+
+  for(;;){
+    sti(); // Enable interrupts
+
+    // Loop over process table looking for process to run.
+    acquire(&ptable.lock);
+    if(cpuid() % 2 != 0){
+    }
+    else{
+      round_robin(p, c);
+    }
     release(&ptable.lock);
   }
 }
