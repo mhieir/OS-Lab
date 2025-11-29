@@ -184,6 +184,7 @@ UPROGS=\
 	_4_5_test\
 	_4_6_test\
 	_queuetest\
+	_psinfo\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)

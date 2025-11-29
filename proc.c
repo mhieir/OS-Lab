@@ -92,6 +92,7 @@ enqueue_cpu(int cpu_id, struct proc *p)
   acquire(&runqueues[cpu_id].lock);
   p->cpu_affinity = cpu_id;
   p->next = 0;
+  p->last_cpuid = cpu_id;
   if(runqueues[cpu_id].head == 0){
     runqueues[cpu_id].head = p;
   } else {
@@ -318,9 +319,9 @@ exit(void)
   struct proc *curproc = myproc();
   struct proc *p;
   int fd;
-  if (measuring) {    
+  if (measuring)  
     myproc()->completed_in_interval = 1;
-  }
+  
   if(curproc == initproc)
     panic("init exiting");
 
@@ -446,7 +447,7 @@ perform_migration(struct cpu *c, int target_cpu, struct proc *victim, struct pro
   victim->next = 0;
   
   release(&runqueues[c->apicid].lock);
-
+  cprintf("process with ID: %d, migrated to CPU: %d\n", victim->pid, target_cpu);
   enqueue_cpu(target_cpu, victim);
 }
 
@@ -793,102 +794,102 @@ procdump(void)
 }
 
 int sys_start(void) {
-    acquire(&tickslock);
-    start_tick = ticks;
-    release(&tickslock);
+  acquire(&tickslock);
+  start_tick = ticks;
+  release(&tickslock);
 
-    measuring = 1;
+  measuring = 1;
 
-    struct proc *p;
-    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
-        p->completed_in_interval = 0;
-    }
-    return 0;
+  struct proc *p;
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+    p->completed_in_interval = 0;
+  }
+  return 0;
 }
 
 int sys_end(void) {
-    if (!measuring) {
-        cprintf("Error: Measurement not started.\n");
-        return -1;
+  if (!measuring) {
+    cprintf("Error: Measurement not started.\n");
+    return -1;
+  }
+  measuring = 0;
+
+  acquire(&tickslock);
+  uint end_tick = ticks;
+  release(&tickslock);
+  uint total_ticks = end_tick - start_tick;
+
+  int completed_count = 0;
+  struct proc *p;
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+    if (p->completed_in_interval) {
+        completed_count++;
     }
-    measuring = 0;
+  }
 
-    acquire(&tickslock);
-    uint end_tick = ticks;
-    release(&tickslock);
-    uint total_ticks = end_tick - start_tick;
+  cprintf("--- Throughput Measurement ---\n");
+  cprintf("Total Ticks: %d\n", total_ticks);
+  cprintf("Completed Processes: %d\n", completed_count);
 
-    int completed_count = 0;
-    struct proc *p;
-    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
-        if (p->completed_in_interval) {
-            completed_count++;
-        }
-    }
+  if (total_ticks > 0) {
+    cprintf("Throughput (Completed/Tick): %d / %d\n", 
+      completed_count, total_ticks);
+  } else {
+    cprintf("Time interval too short (0 ticks).\n");
+  }
 
-    cprintf("--- Throughput Measurement ---\n");
-    cprintf("Total Ticks: %d\n", total_ticks);
-    cprintf("Completed Processes: %d\n", completed_count);
-
-    if (total_ticks > 0) {
-      cprintf("Throughput (Completed/Tick): %d / %d\n", 
-              completed_count, total_ticks);
-    } else {
-      cprintf("Time interval too short (0 ticks).\n");
-    }
-
-    return 0;
+  return 0;
 }
 
 char*
 state_to_str(enum procstate state)
 {
-    switch (state) {
-        case UNUSED: return "UNUSED   ";
-        case EMBRYO: return "EMBRYO   ";
-        case SLEEPING: return "SLEEPING ";
-        case RUNNABLE: return "RUNNABLE ";
-        case RUNNING: return "RUNNING  ";
-        case ZOMBIE: return "ZOMBIE   ";
-        default: return "UNKNOWN  ";
-    }
+  switch (state) {
+    case UNUSED: return "UNUSED   ";
+    case EMBRYO: return "EMBRYO   ";
+    case SLEEPING: return "SLEEPING ";
+    case RUNNABLE: return "RUNNABLE ";
+    case RUNNING: return "RUNNING  ";
+    case ZOMBIE: return "ZOMBIE   ";
+    default: return "  ";
+  }
 }
 
 int
 sys_psinfo(void)
 {
-    struct proc *p;
-    cprintf("\n--- Process Information ---\n");
-    cprintf("--------------------------------------\n");
+  struct proc *p;
+  cprintf("\n--- Process Information ---\n");
+  cprintf("--------------------------------------\n");
 
-    acquire(&ptable.lock); 
+  acquire(&ptable.lock); 
 
-    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
-        if (p->state != UNUSED) {
-            
-            acquire(&tickslock);
-            uint current_tick = ticks;
-            release(&tickslock);
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+    if (p->state == UNUSED) {
+      continue;
+    }
+    acquire(&tickslock);
+    uint current_tick = ticks;
+    release(&tickslock);
 
-            uint elapsed_ticks = 0;
-            if (p->creation_time > 0 && current_tick >= p->creation_time) {
-                elapsed_ticks = current_tick - p->creation_time;
-            }
-
-            cprintf("PID: %d STATUS: %s PARENT: %d NAME: %s ELAPSED (ticks): %d CPU: %d Algorithm: %s\n",
-                    p->pid,
-                    state_to_str(p->state),
-                    (p->parent) ? p->parent->pid : 0,
-                    p->name,
-                    elapsed_ticks,
-                    p->last_cpuid,
-                    (p->last_cpuid == -1)?"didn't run": p->last_cpuid%2? "FCFS" : "RR");
-           
-        }
+    uint elapsed_ticks = 0;
+    if (p->creation_time > 0 && current_tick >= p->creation_time) {
+      elapsed_ticks = current_tick - p->creation_time;
     }
 
-    release(&ptable.lock);
-    cprintf("--------------------------------------\n\n");
-    
-    return 0;
+    cprintf("PID: %d STATUS: %s PARENT: %d NAME: %s ELAPSED(ticks): %d CPU: %d Algorithm: %s\n",
+      p->pid,
+      state_to_str(p->state),
+      (p->parent) ? p->parent->pid : 0,
+      p->name,
+      elapsed_ticks,
+      p->last_cpuid,
+      (p->last_cpuid == -1)?"didn't run": p->last_cpuid%2? "FCFS" : "RR");
+          
+  }
+
+  release(&ptable.lock);
+  cprintf("--------------------------------------\n\n");
+  
+  return 0;
 }
