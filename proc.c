@@ -7,10 +7,33 @@
 #include "proc.h"
 #include "spinlock.h"
 
+
+
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
 } ptable;
+
+struct runq {
+  struct spinlock lock;
+  struct proc *head;
+};
+
+struct runq runqueues[NCPU];
+
+void
+pinit(void)
+{
+  initlock(&ptable.lock, "ptable");
+  char name[16];
+  for(int i=0; i<NCPU; i++){
+    safestrcpy(name, "runq_", 6);
+    name[5] = i + '0';
+    name[6] = 0;
+    initlock(&runqueues[i].lock, name);
+    runqueues[i].head = 0;
+  }
+}
 
 static struct proc *initproc;
 
@@ -20,13 +43,9 @@ uint start_tick;
 extern void forkret(void);
 extern void trapret(void);
 
-static void wakeup1(void *chan);
 
-void
-pinit(void)
-{
-  initlock(&ptable.lock, "ptable");
-}
+
+static void wakeup1(void *chan);
 
 // Must be called with interrupts disabled
 int
@@ -65,6 +84,44 @@ myproc(void) {
   p = c->proc;
   popcli();
   return p;
+}
+
+void
+enqueue_cpu(int cpu_id, struct proc *p)
+{
+  acquire(&runqueues[cpu_id].lock);
+  p->cpu_affinity = cpu_id;
+  p->next = 0;
+  if(runqueues[cpu_id].head == 0){
+    runqueues[cpu_id].head = p;
+  } else {
+    struct proc *curr = runqueues[cpu_id].head;
+    while(curr->next != 0)
+      curr = curr->next;
+    curr->next = p;
+  }
+  release(&runqueues[cpu_id].lock);
+}
+
+int
+dequeue_cpu(int cpu_id, struct proc *p)
+{
+  acquire(&runqueues[cpu_id].lock);
+  struct proc *curr = runqueues[cpu_id].head;
+  struct proc *prev = 0;
+  while(curr){
+    if(curr == p){
+      if(prev) prev->next = curr->next;
+      else runqueues[cpu_id].head = curr->next;
+      curr->next = 0;
+      release(&runqueues[cpu_id].lock);
+      return 0;
+    }
+    prev = curr;
+    curr = curr->next;
+  }
+  release(&runqueues[cpu_id].lock);
+  return -1;
 }
 
 //PAGEBREAK: 32
@@ -157,6 +214,7 @@ userinit(void)
   p->arrival_time = ticks;
 
   release(&ptable.lock);
+  enqueue_cpu(0, p);
 }
 
 // Grow current process's memory by n bytes.
@@ -245,6 +303,9 @@ fork(void)
 
   release(&ptable.lock);
 
+  int target_cpu = find_lightest_e_core();
+  enqueue_cpu(target_cpu, np);
+
   return pid;
 }
 
@@ -257,8 +318,7 @@ exit(void)
   struct proc *curproc = myproc();
   struct proc *p;
   int fd;
-  if (measuring) {
-    
+  if (measuring) {    
     myproc()->completed_in_interval = 1;
   }
   if(curproc == initproc)
@@ -342,6 +402,53 @@ wait(void)
   }
 }
 
+int
+should_attempt_balance(struct cpu *c)
+{
+  if(c->apicid % 2 != 0) 
+    return 0;
+  if((ticks - c->last_lb) < 5) 
+    return 0;
+  return 1;
+}
+
+struct proc*
+find_migration_victim(struct proc *head, struct proc **prev_out)
+{
+  struct proc *curr = head;
+  struct proc *prev = 0;
+  struct proc *victim = 0;
+  struct proc *victim_prev = 0;
+
+  while(curr != 0) {
+    if(curr->pid > 2 && !is_shell_proc(curr)) {
+      if(victim == 0 || curr->arrival_time < victim->arrival_time) {
+        victim = curr;
+        victim_prev = prev;
+      }
+    }
+    prev = curr;
+    curr = curr->next;
+  }
+
+  if (prev_out) *prev_out = victim_prev;
+  return victim;
+}
+
+void
+perform_migration(struct cpu *c, int target_cpu, struct proc *victim, struct proc *victim_prev)
+{
+  if(victim_prev == 0) {
+    runqueues[c->apicid].head = victim->next;
+  } else {
+    victim_prev->next = victim->next;
+  }
+  victim->next = 0;
+  
+  release(&runqueues[c->apicid].lock);
+
+  enqueue_cpu(target_cpu, victim);
+}
 
 
 
@@ -387,30 +494,58 @@ find_lightest_p_core(int *min_load_out)
   return target_id;
 }
 
-struct proc* find_victim_proc(int source_apicid)
+struct proc*
+select_process_rr(struct proc *head)
 {
-  struct proc *p;
-  struct proc *victim = 0;
+  return head;
+}
 
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-    if(p->state == RUNNABLE && p->cpu_affinity == source_apicid){
-      if(p->pid > 2 && !is_shell_proc(p)){
-         if(victim == 0 || p->arrival_time < victim->arrival_time){
-           victim = p;
-         }
-      }
-    }
+struct proc*
+select_process_fcfs(struct proc *head)
+{
+  struct proc *curr = head;
+  struct proc *chosen = head;
+  while(curr){
+    if(curr->creation_time < chosen->creation_time)
+      chosen = curr;
+    curr = curr->next;
   }
-  return victim;
+  return chosen;
+}
+
+void
+detach_process_from_queue(struct cpu *c, struct proc *chosen, struct proc *head)
+{
+  if(chosen == head) {
+    runqueues[c->apicid].head = chosen->next;
+  } else {
+    struct proc *tmp = head;
+    while(tmp->next != chosen)
+      tmp = tmp->next;
+    tmp->next = chosen->next;
+  }
+  chosen->next = 0;
+}
+
+void
+execute_process(struct cpu *c, struct proc *p)
+{
+  c->proc = p;
+  acquire(&ptable.lock);
+  switchuvm(p);
+  p->state = RUNNING;
+  swtch(&(c->scheduler), p->context);
+  switchkvm();
+  c->proc = 0;
+  release(&ptable.lock);
 }
 
 extern uint ticks;
-
 void
 balance_load(struct cpu *c)
 {
-  if(c->apicid % 2 != 0) return;
-  if((ticks - c->last_lb) < 5) return;
+  if(!should_attempt_balance(c))
+    return;
 
   c->last_lb = ticks;
 
@@ -418,72 +553,20 @@ balance_load(struct cpu *c)
   int target_p_load = 0;
   int target_p_cpu = find_lightest_p_core(&target_p_load);
 
-  if(target_p_cpu == -1) return;
+  if(target_p_cpu == -1) 
+    return;
 
-  if(my_load > 1) {
-    cprintf("LB CHECK: E-Core%d(L=%d) vs P-Core%d(L=%d)\n", c->apicid, my_load, target_p_cpu, target_p_load);
-  }
+  if(my_load >= target_p_load + 3) {
+    acquire(&runqueues[c->apicid].lock);
 
-  if(my_load >= (target_p_load + 3)) {
-      struct proc *victim = find_victim_proc(c->apicid);
+    struct proc *victim_prev = 0;
+    struct proc *victim = find_migration_victim(runqueues[c->apicid].head, &victim_prev);
 
-      if(victim != 0){
-        cprintf("LoadBalance: Moving PID %d from CPU%d to CPU%d\n", victim->pid, c->apicid, target_p_cpu);
-        victim->cpu_affinity = target_p_cpu;
-      }
-  }
-}
-
-
-int last_selected_process = -1;
-void scheduler_even_rr( struct cpu *c)
-{
-  int start_index = last_selected_process;
-  struct proc *p;
-  for(int i = 0; i < NPROC; i++){
-      int idx = (start_index + 1 + i) % NPROC;
-      
-      p = &ptable.proc[idx];
-      
-      if(p->state != RUNNABLE)
-        continue;
-      c->proc = p;
-      switchuvm(p);
-      p->ticks_run = 0;
-      p->state = RUNNING;
-      
-      last_selected_process = idx;
-      p->last_cpuid = cpuid();
-      swtch(&(c->scheduler), p->context);
-      switchkvm();
-      c->proc = 0;
-      break;
+    if(victim != 0) {
+      perform_migration(c, target_p_cpu, victim, victim_prev);
+    } else {
+      release(&runqueues[c->apicid].lock);
     }
-}
-
-void
-scheduler_odd_fcfs(struct cpu *c)
-{
-  struct proc *p;
-  struct proc *min_p = 0;
-
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-    if(p->state != RUNNABLE) continue;
-    if(p->cpu_affinity != c->apicid) continue;
-    if(min_p == 0 || p->creation_time < min_p->creation_time){
-      min_p = p;
-    }
-  }
-
-  if(min_p != 0){
-    p = min_p;
-    c->proc = p;
-    switchuvm(p);
-    p->state = RUNNING;
-    p->last_cpuid = cpuid();
-    swtch(&(c->scheduler), p->context);
-    switchkvm();
-    c->proc = 0;
   }
 }
 
@@ -491,17 +574,33 @@ void
 scheduler(void)
 {
   struct cpu *c = mycpu();
+  struct proc *p;
   c->proc = 0;
   for(;;){
     sti();
-    acquire(&ptable.lock);
-    // balance_load(c);
-    if(c->apicid % 2 == 0) scheduler_even_rr(c);
-    else scheduler_odd_fcfs(c);
-    release(&ptable.lock);
+    balance_load(c);
+    acquire(&runqueues[c->apicid].lock);
+    struct proc *head = runqueues[c->apicid].head;
+    if(!head){
+      release(&runqueues[c->apicid].lock);
+      continue;
+    }
+    struct proc *chosen = 0;
+    if(c->apicid % 2 == 0) {
+      chosen = select_process_rr(head);
+    } else {
+      chosen = select_process_fcfs(head);
+    }
+    if(chosen) {
+      detach_process_from_queue(c, chosen, head);
+      release(&runqueues[c->apicid].lock);
+      execute_process(c, chosen);
+    } else {
+      release(&runqueues[c->apicid].lock);
+    }
   }
-
 }
+
 
 
 // Enter scheduler.  Must hold only ptable.lock
@@ -531,12 +630,16 @@ sched(void)
 }
 
 // Give up the CPU for one scheduling round.
+// Give up the CPU for one scheduling round.
 void
 yield(void)
 {
-  acquire(&ptable.lock);  //DOC: yieldlock
+  acquire(&ptable.lock); 
   myproc()->state = RUNNABLE;
   myproc()->arrival_time = ticks;
+  release(&ptable.lock);
+  enqueue_cpu(cpuid(), myproc());
+  acquire(&ptable.lock);
   sched();
   release(&ptable.lock);
 }
@@ -609,10 +712,13 @@ wakeup1(void *chan)
 {
   struct proc *p;
 
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    if(p->state == SLEEPING && p->chan == chan)
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+    if(p->state == SLEEPING && p->chan == chan) {
       p->state = RUNNABLE;
-	  p->arrival_time = ticks;
+      p->arrival_time = ticks;
+      enqueue_cpu(p->cpu_affinity, p); 
+    }
+  }
 }
 
 // Wake up all processes sleeping on chan.
@@ -636,10 +742,11 @@ kill(int pid)
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->pid == pid){
       p->killed = 1;
-      // Wake process from sleep if necessary.
-      if(p->state == SLEEPING)
+      if(p->state == SLEEPING) {
         p->state = RUNNABLE;
-		p->arrival_time = ticks;
+        p->arrival_time = ticks;
+        enqueue_cpu(p->cpu_affinity, p);
+      }
       release(&ptable.lock);
       return 0;
     }

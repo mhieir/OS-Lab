@@ -56,6 +56,7 @@ struct proc {
   int ticks_run;
   int completed_in_interval;
   int last_cpuid;
+  struct proc *next;
 };
 
 // Process memory is laid out contiguously, low addresses first:
