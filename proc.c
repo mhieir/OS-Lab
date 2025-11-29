@@ -325,6 +325,7 @@ wait(void)
         p->name[0] = 0;
         p->killed = 0;
         p->state = UNUSED;
+        p->last_cpuid = -1;
         release(&ptable.lock);
         return pid;
       }
@@ -452,7 +453,7 @@ void scheduler_even_rr( struct cpu *c)
       p->state = RUNNING;
       
       last_selected_process = idx;
-
+      p->last_cpuid = cpuid();
       swtch(&(c->scheduler), p->context);
       switchkvm();
       c->proc = 0;
@@ -479,6 +480,7 @@ scheduler_odd_fcfs(struct cpu *c)
     c->proc = p;
     switchuvm(p);
     p->state = RUNNING;
+    p->last_cpuid = cpuid();
     swtch(&(c->scheduler), p->context);
     switchkvm();
     c->proc = 0;
@@ -766,18 +768,20 @@ sys_psinfo(void)
                 elapsed_ticks = current_tick - p->creation_time;
             }
 
-            cprintf("PID: %d STATUS: %s PARENT: %d NAME: %s ELAPSED (ticks): %d\n",
+            cprintf("PID: %d STATUS: %s PARENT: %d NAME: %s ELAPSED (ticks): %d CPU: %d Algorithm: %s\n",
                     p->pid,
                     state_to_str(p->state),
                     (p->parent) ? p->parent->pid : 0,
                     p->name,
-                    elapsed_ticks);
+                    elapsed_ticks,
+                    p->last_cpuid,
+                    (p->last_cpuid == -1)?"didn't run": p->last_cpuid%2? "FCFS" : "RR");
            
         }
     }
 
     release(&ptable.lock);
-    cprintf("------------------------------------\n\n");
+    cprintf("--------------------------------------\n\n");
     
     return 0;
 }

@@ -55,6 +55,7 @@ struct proc {
   uint arrival_time;
   int ticks_run;
   int completed_in_interval;
+  int last_cpuid;
 };
 
 // Process memory is laid out contiguously, low addresses first:
