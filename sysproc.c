@@ -89,3 +89,27 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+
+struct sleeplock testlock;
+void
+testlockinit(void)
+{
+  initsleeplock(&testlock, "test lock");
+}
+
+int
+sys_test_sleeplock(void)
+{
+  int op;
+  if(argint(0, &op) < 0) return -1;
+
+  if(op == 1) { 
+    acquiresleep(&testlock);
+    return 0;
+  } else if(op == 2) {
+    releasesleep(&testlock);
+    return 0;
+  }
+  return -1;
+}
