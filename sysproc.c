@@ -6,6 +6,8 @@
 #include "memlayout.h"
 #include "mmu.h"
 #include "proc.h"
+#include "spinlock.h"
+#include "sleeplock.h"
 
 int
 sys_fork(void)
@@ -112,4 +114,29 @@ sys_test_sleeplock(void)
     return 0;
   }
   return -1;
+}
+
+extern struct spinlock tickslock; 
+
+int
+sys_getlockstat(void)
+{
+  uint64 *score;
+
+  if(argptr(0, (void*)&score, sizeof(uint64) * NCPU) < 0)
+    return -1;
+
+  struct spinlock *target_lock = &tickslock;
+
+  uint64 k_scores[NCPU];
+  for(int i = 0; i < NCPU; i++){
+      if(target_lock->total_spins[i] != 0 && target_lock->acq_count[i] != 0)
+          k_scores[i] = target_lock->total_spins[i] / target_lock->acq_count[i];
+      else
+          k_scores[i] = 0;
+  }
+
+  if(copyout(myproc()->pgdir, (uint64)score, (void*)k_scores, sizeof(uint64) * NCPU) < 0)
+    return -1;
+  return 0;
 }

@@ -24,6 +24,7 @@ char* sbrk(int);
 int sleep(int);
 int uptime(void);
 int test_sleeplock(int op);
+int getlockstat(uint64 *score);
 
 // ulib.c
 int stat(const char*, struct stat*);
