@@ -1,6 +1,7 @@
 #include "types.h"
-#include "user.h"
 #include "stat.h"
+#include "user.h"
+
 
 #define NCPU 8
 

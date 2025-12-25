@@ -118,6 +118,8 @@ sys_test_sleeplock(void)
 
 extern struct spinlock tickslock; 
 
+// In sysproc.c
+
 int
 sys_getlockstat(void)
 {
@@ -131,9 +133,13 @@ sys_getlockstat(void)
   uint64 k_scores[NCPU];
   for(int i = 0; i < NCPU; i++){
       if(target_lock->total_spins[i] != 0 && target_lock->acq_count[i] != 0)
-          k_scores[i] = target_lock->total_spins[i] / target_lock->acq_count[i];
+      {
+          k_scores[i] = (uint)target_lock->total_spins[i] / (uint)target_lock->acq_count[i];
+      }
       else
+      {
           k_scores[i] = 0;
+      }
   }
 
   if(copyout(myproc()->pgdir, (uint64)score, (void*)k_scores, sizeof(uint64) * NCPU) < 0)
