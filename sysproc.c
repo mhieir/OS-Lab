@@ -87,9 +87,7 @@ sys_uptime(void)
   uint xticks;
 
   acquire(&tickslock);
-  volatile int i;
-  for(i = 0; i < 100000; i++){
-  }
+  
   xticks = ticks;
   release(&tickslock);
   return xticks;

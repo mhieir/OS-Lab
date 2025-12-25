@@ -42,9 +42,6 @@ acquire(struct spinlock *lk)
     spins++;
   }
 
-  if(spins > 0) {
-      cprintf("CPU %d spun %d times!\n", cpuid(), spins);
-  }
 
   int id = cpuid();
   lk->acq_count[id]++;
