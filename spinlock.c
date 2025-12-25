@@ -26,31 +26,32 @@ initlock(struct spinlock *lk, char *name)
 // Loops (spins) until the lock is acquired.
 // Holding a lock for a long time may cause
 // other CPUs to waste time spinning to acquire it.
+// In spinlock.c
+
 void
 acquire(struct spinlock *lk)
 {
-  pushcli(); // disable interrupts to avoid deadlock.
+  pushcli();
   if(holding(lk))
     panic("acquire");
 
-  int spins = 0;
+  int spins = 0; // Initialize local counter
 
-  // The xchg is atomic.
+  // The loop check
   while(xchg(&lk->locked, 1) != 0) {
     spins++;
-  };
+  }
 
-  // Tell the C compiler and the processor to not move loads or stores
-  // past this point, to ensure that the critical section's memory
-  // references happen after the lock is acquired.
+  if(spins > 0) {
+      cprintf("CPU %d spun %d times!\n", cpuid(), spins);
+  }
 
   int id = cpuid();
   lk->acq_count[id]++;
-  lk->total_spins[id] += spins;
+  lk->total_spins[id] += spins; // ADD TO TOTAL
 
   __sync_synchronize();
-
-  // Record info about lock acquisition for debugging.
+  
   lk->cpu = mycpu();
   getcallerpcs(&lk, lk->pcs);
 }
