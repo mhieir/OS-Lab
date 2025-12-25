@@ -87,6 +87,10 @@ sys_uptime(void)
   uint xticks;
 
   acquire(&tickslock);
+  volatile int i;
+  for(int i =0 ;i < 10000; i++) {
+    
+  }
   xticks = ticks;
   release(&tickslock);
   return xticks;
@@ -132,14 +136,15 @@ sys_getlockstat(void)
 
   uint64 k_scores[NCPU];
   for(int i = 0; i < NCPU; i++){
-      if(target_lock->total_spins[i] != 0 && target_lock->acq_count[i] != 0)
-      {
-          k_scores[i] = (uint)target_lock->total_spins[i] / (uint)target_lock->acq_count[i];
-      }
-      else
-      {
-          k_scores[i] = 0;
-      }
+      // if(target_lock->total_spins[i] != 0 && target_lock->acq_count[i] != 0)
+      // {
+      //     k_scores[i] = (uint)target_lock->total_spins[i] / (uint)target_lock->acq_count[i];
+      // }
+      // else
+      // {
+      //     k_scores[i] = 0;
+      // }
+       k_scores[i]  = (uint)target_lock->total_spins[i];
   }
 
   if(copyout(myproc()->pgdir, (uint64)score, (void*)k_scores, sizeof(uint64) * NCPU) < 0)

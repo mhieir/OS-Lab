@@ -22,7 +22,7 @@ main(int argc, char *argv[])
   uint64 scores[NCPU];
   int i, pid;
   int n_children = 4;
-  int loops = 10000;
+  int loops = 100000;
 
   printf(1, "Starting lock contention test on 'tickslock'...\n");
 
