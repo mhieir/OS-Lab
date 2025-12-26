@@ -266,7 +266,6 @@ iget(uint dev, uint inum)
   ip->inum = inum;
   ip->ref = 1;
   ip->valid = 0;
-  rwlock_init(&ip->data_rwlock, "inode_rwlock");
   release(&icache.lock);
 
   return ip;
