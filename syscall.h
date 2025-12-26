@@ -28,3 +28,6 @@
 #define SYS_rwlock_release_read  26
 #define SYS_rwlock_acquire_write 27
 #define SYS_rwlock_release_write 28
+
+#define SYS_plock_acquire 29
+#define SYS_plock_release 30

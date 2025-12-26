@@ -185,6 +185,7 @@ UPROGS=\
 	_test_sleeplock\
 	_locktest\
 	_rwlock_test\
+	_plock_test\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)

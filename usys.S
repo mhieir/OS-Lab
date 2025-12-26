@@ -37,3 +37,6 @@ SYSCALL(rwlock_acquire_read)
 SYSCALL(rwlock_release_read)
 SYSCALL(rwlock_acquire_write)
 SYSCALL(rwlock_release_write)
+
+SYSCALL(plock_acquire)
+SYSCALL(plock_release)

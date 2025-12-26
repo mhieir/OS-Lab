@@ -9,7 +9,7 @@
 #include "plock.h"
 
 struct plock global_plock;
-struct plock_node node_pool[NPROC]; // Pre-allocated nodes
+struct plock_node node_pool[NPROC];
 
 void plock_init(struct plock *pl) {
   initlock(&pl->lk, "plock");
@@ -26,7 +26,6 @@ void plock_acquire(struct plock *pl, int priority) {
     return;
   }
 
-  // Lock is occupied, add current process to the queue
   struct proc *curproc = myproc();
   struct plock_node *new_node = &node_pool[curproc->pid % NPROC];
   new_node->p = curproc;
@@ -34,8 +33,6 @@ void plock_acquire(struct plock *pl, int priority) {
   new_node->next = pl->head;
   pl->head = new_node;
 
-  // Sleep and release the internal spinlock
-  // When we wake up, plock_release has already handed us the lock
   sleep(curproc, &pl->lk);
   
   release(&pl->lk);
@@ -65,8 +62,6 @@ void plock_release(struct plock *pl) {
     temp_prev = temp_curr;
     temp_curr = temp_curr->next;
   }
-
-  // Remove max_node from list
   if (max_prev == 0) 
     pl->head = max_node->next;
   else 
