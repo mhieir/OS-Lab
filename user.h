@@ -39,3 +39,8 @@ void* memset(void*, int, uint);
 void* malloc(uint);
 void free(void*);
 int atoi(const char*);
+int rwlock_init(void);
+int rwlock_acquire_read(void);
+int rwlock_release_read(void);
+int rwlock_acquire_write(void);
+int rwlock_release_write(void);

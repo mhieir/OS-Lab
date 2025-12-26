@@ -22,3 +22,9 @@
 #define SYS_close  21
 #define SYS_test_sleeplock  22
 #define SYS_getlockstat 23
+
+#define SYS_rwlock_init          24
+#define SYS_rwlock_acquire_read  25
+#define SYS_rwlock_release_read  26
+#define SYS_rwlock_acquire_write 27
+#define SYS_rwlock_release_write 28

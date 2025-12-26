@@ -145,3 +145,32 @@ sys_getlockstat(void)
     return -1;
   return 0;
 }
+
+
+
+struct rwlock test_lock;
+
+uint64 sys_rwlock_init(void) {
+  rwlock_init(&test_lock, "test_rw_lock");
+  return 0;
+}
+
+uint64 sys_rwlock_acquire_read(void) {
+  rwlock_acquire_read(&test_lock);
+  return 0;
+}
+
+uint64 sys_rwlock_release_read(void) {
+  rwlock_release_read(&test_lock);
+  return 0;
+}
+
+uint64 sys_rwlock_acquire_write(void) {
+  rwlock_acquire_write(&test_lock);
+  return 0;
+}
+
+uint64 sys_rwlock_release_write(void) {
+  rwlock_release_write(&test_lock);
+  return 0;
+}

@@ -106,6 +106,12 @@ extern int sys_uptime(void);
 extern int sys_test_sleeplock(void);
 extern int sys_getlockstat(void);
 
+extern int sys_rwlock_init(void);
+extern int sys_rwlock_acquire_read(void);
+extern int sys_rwlock_release_read(void);
+extern int sys_rwlock_acquire_write(void);
+extern int sys_rwlock_release_write(void);
+
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
 [SYS_exit]    sys_exit,
@@ -130,6 +136,12 @@ static int (*syscalls[])(void) = {
 [SYS_close]   sys_close,
 [SYS_test_sleeplock]   sys_test_sleeplock,
 [SYS_getlockstat] sys_getlockstat,
+
+[SYS_rwlock_init]         sys_rwlock_init,
+[SYS_rwlock_acquire_read]  sys_rwlock_acquire_read,
+[SYS_rwlock_release_read]  sys_rwlock_release_read,
+[SYS_rwlock_acquire_write] sys_rwlock_acquire_write,
+[SYS_rwlock_release_write] sys_rwlock_release_write,
 };
 
 void
