@@ -8,7 +8,6 @@
 #include "fs.h"
 #include "spinlock.h"
 #include "sleeplock.h"
-#include "rwlock.h"
 #include "file.h"
 
 struct devsw devsw[NDEV];
@@ -105,11 +104,13 @@ fileread(struct file *f, char *addr, int n)
     return piperead(f->pipe, addr, n);
 
   if(f->type == FD_INODE){
+    // ilock(f->ip); 
+    // iunlock(f->ip);
     rwlock_acquire_read(&f->ip->data_rwlock);
-    // ilock(f->ip);
+    ilock(f->ip);
     if((r = readi(f->ip, addr, f->off, n)) > 0)
       f->off += r;
-    // iunlock(f->ip);
+    iunlock(f->ip);
     rwlock_release_read(&f->ip->data_rwlock);
     return r;
   }
