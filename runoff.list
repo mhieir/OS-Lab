@@ -37,6 +37,7 @@ sysproc.c
 # file system
 buf.h
 sleeplock.h
+plock.h
 fcntl.h
 stat.h
 fs.h
@@ -44,6 +45,7 @@ file.h
 ide.c
 bio.c
 sleeplock.c
+plock.c
 log.c
 fs.c
 file.c
