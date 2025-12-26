@@ -8,6 +8,7 @@
 #include "fs.h"
 #include "spinlock.h"
 #include "sleeplock.h"
+#include "rwlock.h"
 #include "file.h"
 
 struct devsw devsw[NDEV];
@@ -102,11 +103,14 @@ fileread(struct file *f, char *addr, int n)
     return -1;
   if(f->type == FD_PIPE)
     return piperead(f->pipe, addr, n);
+
   if(f->type == FD_INODE){
-    ilock(f->ip);
+    rwlock_acquire_read(&f->ip->data_rwlock);
+    // ilock(f->ip);
     if((r = readi(f->ip, addr, f->off, n)) > 0)
       f->off += r;
-    iunlock(f->ip);
+    // iunlock(f->ip);
+    rwlock_release_read(&f->ip->data_rwlock);
     return r;
   }
   panic("fileread");
@@ -124,6 +128,7 @@ filewrite(struct file *f, char *addr, int n)
   if(f->type == FD_PIPE)
     return pipewrite(f->pipe, addr, n);
   if(f->type == FD_INODE){
+    rwlock_acquire_write(&f->ip->data_rwlock);
     // write a few blocks at a time to avoid exceeding
     // the maximum log transaction size, including
     // i-node, indirect block, allocation blocks,
@@ -146,10 +151,13 @@ filewrite(struct file *f, char *addr, int n)
 
       if(r < 0)
         break;
-      if(r != n1)
+      if(r != n1){
+        rwlock_release_write(&f->ip->data_rwlock);
         panic("short filewrite");
+      }
       i += r;
     }
+    rwlock_release_write(&f->ip->data_rwlock);
     return i == n ? n : -1;
   }
   panic("filewrite");
