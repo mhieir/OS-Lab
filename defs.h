@@ -124,7 +124,11 @@ void            yield(void);
 
 //paging.c
 void            paginginit(void);
-extern          Central_Page_Table central_page_table;
+void            paging_exit_cleanup(int pid) ;
+int             get_victim_fifo();
+int             get_victim_lru();
+int             get_page_index(uint vaddr);
+extern struct   Central_Page_Table central_page_table;
 
 
 // swtch.S

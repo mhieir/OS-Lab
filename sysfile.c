@@ -13,6 +13,7 @@
 #include "fs.h"
 #include "spinlock.h"
 #include "sleeplock.h"
+#include "paging.h"
 #include "file.h"
 #include "fcntl.h"
 
@@ -441,4 +442,60 @@ sys_pipe(void)
   fd[0] = fd0;
   fd[1] = fd1;
   return 0;
+}
+
+int sys_paging_write(void) {
+    char *ptr;
+    int value;
+    if (argptr(0, &ptr, sizeof(void*)) < 0 || argint(1, &value) < 0)
+        return -1;
+
+    acquire(&central_page_table.lock);
+    
+    central_page_table.total_accesses++;
+    int idx = get_page_index((uint)ptr);
+    
+    uint offset = (uint)ptr % PGSIZE;
+    
+    *(int*)(central_page_table.entries[idx].physical_addr + offset) = value;
+
+    central_page_table.entries[idx].last_access = ticks;
+    central_page_table.entries[idx].access_count++;
+    central_page_table.entries[idx].use_bit = 1;
+
+    release(&central_page_table.lock);
+    return 0; 
+}
+
+int sys_paging_read(void) {
+    char *ptr;
+
+    if (argptr(0, &ptr, sizeof(void*)) < 0)
+        return -1;
+
+    acquire(&central_page_table.lock); 
+    
+    central_page_table.total_accesses++;
+    int idx = get_page_index((uint)ptr);
+    
+    uint offset = (uint)ptr % PGSIZE;
+    
+    int value = *(int*)(central_page_table.entries[idx].physical_addr + offset);
+
+    central_page_table.entries[idx].last_access = ticks;
+    central_page_table.entries[idx].access_count++;
+    central_page_table.entries[idx].use_bit = 1;
+
+    release(&central_page_table.lock);
+    return value; 
+}
+int sys_paging_metrics(void) {
+    acquire(&central_page_table.lock);
+    int hits = central_page_table.hit_count;
+    float ratio = (float)hits / central_page_table.total_accesses * 100;
+    
+    cprintf("Hit Count: %d\n", hits);
+    cprintf("Hit Ratio: %d%%\n", (int)ratio); 
+    release(&central_page_table.lock);
+    return 0;
 }

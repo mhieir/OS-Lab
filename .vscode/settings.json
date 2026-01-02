@@ -1,5 +1,8 @@
 {
     "files.associations": {
-        "types.h": "c"
+        "types.h": "c",
+        "paging.h": "c",
+        "defs.h": "c",
+        "mmu.h": "c"
     }
 }
