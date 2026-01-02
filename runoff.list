@@ -41,12 +41,14 @@ fcntl.h
 stat.h
 fs.h
 file.h
+paging.h
 ide.c
 bio.c
 sleeplock.c
 log.c
 fs.c
 file.c
+paging.c
 sysfile.c
 exec.c
 

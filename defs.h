@@ -9,6 +9,7 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
+struct Central_Page_Table;
 
 // bio.c
 void            binit(void);
@@ -120,6 +121,11 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
+
+//paging.c
+void            paginginit(void);
+
+
 
 // swtch.S
 void            swtch(struct context**, struct context*);
