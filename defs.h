@@ -124,7 +124,7 @@ void            yield(void);
 
 //paging.c
 void            paginginit(void);
-
+extern          Central_Page_Table central_page_table;
 
 
 // swtch.S

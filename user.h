@@ -23,6 +23,9 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+int paging_write(void* ptr, int value);
+int paging_read(void* ptr);
+void paging_metrics(void);
 
 // ulib.c
 int stat(const char*, struct stat*);

@@ -17,3 +17,12 @@ void paginginit(void) {
         central_page_table.entries[i].physical_addr = kalloc(); // Pre-allocate [cite: 19]
     }
 }
+
+void paging_exit_cleanup(int pid) {
+  acquire(&central_page_table.lock);
+  for(int i = 0; i < 4; i++){
+    if(central_page_table.entries[i].pid == pid) 
+      central_page_table.entries[i].valid = 0;
+  }
+  release(&central_page_table.lock);
+}
