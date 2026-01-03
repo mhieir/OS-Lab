@@ -4,6 +4,7 @@ struct central_pte {
     uint vpn;
     int pid;
     int valid;
+    int dirty;
     
     uint last_access;    // For LRU
     uint access_count;   // For LFU

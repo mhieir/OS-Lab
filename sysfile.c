@@ -457,6 +457,7 @@ int sys_paging_write(void) {
     int idx = get_page_index((uint)ptr, algo);
     uint offset = (uint)ptr % PGSIZE;
     *(int*)(central_page_table.entries[idx].physical_addr + offset) = value;
+    central_page_table.entries[idx].dirty = 1;
 
     release(&central_page_table.lock);
     return 0; 

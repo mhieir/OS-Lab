@@ -4,59 +4,14 @@
 #include "memlayout.h"
 #include "mmu.h"
 #include "spinlock.h"
-#include "sleeplock.h" 
 #include "proc.h"
 #include "paging.h"
-#include "fs.h"
-#include "file.h"
-#include "fcntl.h"
 
 struct Central_Page_Table central_page_table;
-struct inode *swap_backing_store; // Pointer to the "Disk" file
-
-// Helper to calculate file offset: simple (pid * large_offset) + vpn
-// This ensures different processes don't overwrite each other in the swap file
-static uint get_swap_offset(int pid, uint vpn) {
-    return (pid * 1024 * PGSIZE) + (vpn * PGSIZE);
-}
-
-// Write a page from RAM to the Swap File
-void swap_out(int victim_idx) {
-    struct central_pte *e = &central_page_table.entries[victim_idx];
-    if (!e->valid) return;
-
-    uint offset = get_swap_offset(e->pid, e->vpn);
-    
-    // writei is the xv6 internal function to write to an inode
-    begin_op();
-    writei(swap_backing_store, e->physical_addr, offset, PGSIZE);
-    end_op();
-}
-
-// Read a page from the Swap File into RAM
-void swap_in(int target_idx, int pid, uint vpn) {
-    struct central_pte *e = &central_page_table.entries[target_idx];
-    uint offset = get_swap_offset(pid, vpn);
-
-    // readi is the xv6 internal function to read from an inode
-    begin_op();
-    readi(swap_backing_store, e->physical_addr, offset, PGSIZE);
-    end_op();
-}
 
 void paginginit(void) {
     initlock(&central_page_table.lock, "paging_table");
     central_page_table.hit_count = 0;
-
-    // Initialize the "Disk" backing store
-    // In a real xv6 environment, you'd create/open a specific swap file
-    begin_op();
-    swap_backing_store = namei("/SWAP_FILE");
-    if(swap_backing_store == 0) {
-        // If file doesn't exist, you'd create it here via itrunc or similar
-        // For this snippet, assume the file is pre-allocated
-    }
-    end_op();
 
     for(int i = 0; i < MAX_PTE; i++) {
         central_page_table.entries[i].valid = 0;
@@ -70,6 +25,7 @@ void paginginit(void) {
         central_page_table.entries[i].last_access = 0;
         central_page_table.entries[i].access_count = 0;
         central_page_table.entries[i].reference_bit = 0;
+        central_page_table.entries[i].dirty = 0;
         central_page_table.entries[i].vpn = 0;
         central_page_table.entries[i].pid = -1;
     }
@@ -136,7 +92,10 @@ int get_page_index(uint vaddr, int algo) {
     uint vpn = vaddr / PGSIZE;
     int pid = myproc()->pid;
     int target_idx = -1;
-
+    int count = 5;
+    for (volatile int i = 0; i < count * 100000; i++) {
+    // Just loop
+    }
     for (int i = 0; i < 4; i++) {
         if (central_page_table.entries[i].valid && 
             central_page_table.entries[i].vpn == vpn && 
@@ -163,16 +122,23 @@ int get_page_index(uint vaddr, int algo) {
         else if (algo == 2) target_idx = get_victim_lfu();
         else if (algo == 3) target_idx = get_victim_clock();
         else                target_idx = get_victim_fifo();
-        swap_out(target_idx);
-        central_page_table.entries[target_idx].valid = 0;
     }
 
+    count = 50;
+    for (volatile int i = 0; i < count * 100000; i++) {
+    // Just loop
+    }
 
-    swap_in(target_idx, pid, vpn);
+    if (central_page_table.entries[target_idx].valid && central_page_table.entries[target_idx].dirty) {
+        uint old_vpn = central_page_table.entries[target_idx].vpn;
+        memmove((void*)(old_vpn * PGSIZE), central_page_table.entries[target_idx].physical_addr, PGSIZE);
+        central_page_table.entries[target_idx].dirty = 0;
+    }
 
+    memmove(central_page_table.entries[target_idx].physical_addr, (void*)(vpn * PGSIZE), PGSIZE);
     central_page_table.entries[target_idx].vpn = vpn;
     central_page_table.entries[target_idx].pid = pid;
-    central_page_table.entries[target_idx].valid = 1;      
+    central_page_table.entries[target_idx].valid = 1;     
     central_page_table.entries[target_idx].arrival_time = ticks;
     central_page_table.entries[target_idx].last_access = ticks;
     central_page_table.entries[target_idx].access_count = 1;
