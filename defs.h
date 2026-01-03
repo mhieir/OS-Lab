@@ -127,7 +127,7 @@ void            paginginit(void);
 void            paging_exit_cleanup(int pid) ;
 int             get_victim_fifo();
 int             get_victim_lru();
-int             get_page_index(uint vaddr);
+int             get_page_index(uint vaddr, int algo);
 extern struct   Central_Page_Table central_page_table;
 
 
