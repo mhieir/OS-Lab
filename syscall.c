@@ -106,6 +106,7 @@ extern int sys_uptime(void);
 extern int sys_paging_write(void);
 extern int sys_paging_read(void);
 extern int sys_paging_metrics(void);
+extern int sys_reset_paging_metrics(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -132,6 +133,7 @@ static int (*syscalls[])(void) = {
 [SYS_paging_write]   sys_paging_write,
 [SYS_paging_read]    sys_paging_read,
 [SYS_paging_metrics] sys_paging_metrics,
+[SYS_reset_paging_metrics] sys_reset_paging_metrics,
 };
 
 void

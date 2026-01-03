@@ -19,11 +19,12 @@ int main(int argc, char *argv[]) {
     }
 
     printf(1, "--- Program 2: Cyclic 5-Page Access using Algo %d ---\n", algo);
+    // for(int i = 0; i < 5; i++) {
+    //     paging_write(p + (i * PGSIZE), i * 100, algo);
+    // }
+    
     uint start_ticks = uptime();
-    for(int i = 0; i < 5; i++) {
-        paging_write(p + (i * PGSIZE), i * 100, algo);
-    }
-
+    reset_paging_metrics();
     for(int loop = 0; loop < 4; loop++) {
         for(int i = 0; i < 5; i++) {
             int val = paging_read(p + (i * PGSIZE), algo); 

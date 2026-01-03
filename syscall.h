@@ -23,3 +23,4 @@
 #define SYS_paging_write   22
 #define SYS_paging_read    23
 #define SYS_paging_metrics 24
+#define SYS_reset_paging_metrics 25

@@ -21,6 +21,7 @@ int main(int argc, char *argv[]) {
     }
 
     printf(1, "--- Program 1: Testing Algorithm %d ---\n", algo);
+    reset_paging_metrics();
     uint start_ticks = uptime();
     for(int i = 0; i < 11; i++) {
         char *addr = p + (i * PGSIZE);

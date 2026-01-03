@@ -485,7 +485,15 @@ int sys_paging_metrics(void) {
     float ratio = (float)hits / central_page_table.total_accesses * 100;
     
     cprintf("Hit Count: %d\n", hits);
+    cprintf("total access: %d\n", central_page_table.total_accesses);
     cprintf("Hit Ratio: %d%%\n", (int)ratio); 
     release(&central_page_table.lock);
     return 0;
+}
+int sys_reset_paging_metrics(void){
+  acquire(&central_page_table.lock);
+    central_page_table.hit_count = 0;
+    central_page_table.total_accesses = 0;
+  release(&central_page_table.lock);
+  return 0;
 }

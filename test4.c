@@ -22,7 +22,7 @@ int main(int argc, char *argv[]) {
     }
 
     printf(1, "--- Program 4: Specific Sequence Access (Algo: %d) ---\n", algo);
-
+    reset_paging_metrics();
     uint start_ticks = uptime();
 
     for(int i = 0; i < 100; i++) {

@@ -22,7 +22,7 @@ int main(int argc, char *argv[]) {
     for(int i = 0; i < 5; i++) paging_write(cold + (i * PGSIZE), 0, algo);
 
     printf(1, "--- Program 3: Hot/Cold Access Patterns (Algo: %d) ---\n", algo);
-
+    reset_paging_metrics();
     uint start_ticks = uptime();
 
     for(int k = 0; k < 50; k++) {

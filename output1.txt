@@ -1,65 +1,100 @@
-init: starting sh
-$ test1 0
---- Program 1: Testing Algorithm 0 ---
-Accessed Page 0 (Virtual Addr: 3000)
-Accessed Page 1 (Virtual Addr: 4000)
-Accessed Page 2 (Virtual Addr: 5000)
-Accessed Page 3 (Virtual Addr: 6000)
-Accessed Page 4 (Virtual Addr: 7000)
-Accessed Page 5 (Virtual Addr: 8000)
-Accessed Page 6 (Virtual Addr: 9000)
-Accessed Page 7 (Virtual Addr: A000)
-Accessed Page 8 (Virtual Addr: B000)
-Accessed Page 9 (Virtual Addr: C000)
-Accessed Page 10 (Virtual Addr: D000)
-Hit Count: 0
-Hit Ratio: 0%
-Execution Time: 4 ticks
-$ test1 1
---- Program 1: Testing Algorithm 1 ---
-Accessed Page 0 (Virtual Addr: 3000)
-Accessed Page 1 (Virtual Addr: 4000)
-Accessed Page 2 (Virtual Addr: 5000)
-Accessed Page 3 (Virtual Addr: 6000)
-Accessed Page 4 (Virtual Addr: 7000)
-Accessed Page 5 (Virtual Addr: 8000)
-Accessed Page 6 (Virtual Addr: 9000)
-Accessed Page 7 (Virtual Addr: A000)
-Accessed Page 8 (Virtual Addr: B000)
-Accessed Page 9 (Virtual Addr: C000)
-Accessed Page 10 (Virtual Addr: D000)
-Hit Count: 0
-Hit Ratio: 0%
-Execution Time: 4 ticks
-$ test1 2
---- Program 1: Testing Algorithm 2 ---
-Accessed Page 0 (Virtual Addr: 3000)
-Accessed Page 1 (Virtual Addr: 4000)
-Accessed Page 2 (Virtual Addr: 5000)
-Accessed Page 3 (Virtual Addr: 6000)
-Accessed Page 4 (Virtual Addr: 7000)
-Accessed Page 5 (Virtual Addr: 8000)
-Accessed Page 6 (Virtual Addr: 9000)
-Accessed Page 7 (Virtual Addr: A000)
-Accessed Page 8 (Virtual Addr: B000)
-Accessed Page 9 (Virtual Addr: C000)
-Accessed Page 10 (Virtual Addr: D000)
-Hit Count: 0
-Hit Ratio: 0%
+$ test2 0
+--- Program 2: Cyclic 5-Page Access using Algo 0 ---
+Loop 0: Read Page 0 (val: 0)
+Loop 0: Read Page 1 (val: 100)
+Loop 0: Read Page 2 (val: 200)
+Loop 0: Read Page 3 (val: 300)
+Loop 0: Read Page 4 (val: 0)
+Loop 1: Read Page 0 (val: 0)
+Loop 1: Read Page 1 (val: 100)
+Loop 1: Read Page 2 (val: 0)
+Loop 1: Read Page 3 (val: 0)
+Loop 1: Read Page 4 (val: 0)
+Loop 2: Read Page 0 (val: 0)
+Loop 2: Read Page 1 (val: 0)
+Loop 2: Read Page 2 (val: 0)
+Loop 2: Read Page 3 (val: 0)
+Loop 2: Read Page 4 (val: 0)
+Loop 3: Read Page 0 (val: 0)
+Loop 3: Read Page 1 (val: 0)
+Loop 3: Read Page 2 (val: 0)
+Loop 3: Read Page 3 (val: 0)
+Loop 3: Read Page 4 (val: 0)
+Hit Count: 10
+Hit Ratio: 40%
+Execution Time: 8 ticks
+$ test2 1
+--- Program 2: Cyclic 5-Page Access using Algo 1 ---
+Loop 0: Read Page 0 (val: 0)
+Loop 0: Read Page 1 (val: 0)
+Loop 0: Read Page 2 (val: 200)
+Loop 0: Read Page 3 (val: 300)
+Loop 0: Read Page 4 (val: 0)
+Loop 1: Read Page 0 (val: 0)
+Loop 1: Read Page 1 (val: 0)
+Loop 1: Read Page 2 (val: 0)
+Loop 1: Read Page 3 (val: 300)
+Loop 1: Read Page 4 (val: 0)
+Loop 2: Read Page 0 (val: 0)
+Loop 2: Read Page 1 (val: 0)
+Loop 2: Read Page 2 (val: 0)
+Loop 2: Read Page 3 (val: 0)
+Loop 2: Read Page 4 (val: 0)
+Loop 3: Read Page 0 (val: 0)
+Loop 3: Read Page 1 (val: 0)
+Loop 3: Read Page 2 (val: 0)
+Loop 3: Read Page 3 (val: 0)
+Loop 3: Read Page 4 (val: 0)
+Hit Count: 8
+Hit Ratio: 32%
 Execution Time: 5 ticks
-$ test1 3
---- Program 1: Testing Algorithm 3 ---
-Accessed Page 0 (Virtual Addr: 3000)
-Accessed Page 1 (Virtual Addr: 4000)
-Accessed Page 2 (Virtual Addr: 5000)
-Accessed Page 3 (Virtual Addr: 6000)
-Accessed Page 4 (Virtual Addr: 7000)
-Accessed Page 5 (Virtual Addr: 8000)
-Accessed Page 6 (Virtual Addr: 9000)
-Accessed Page 7 (Virtual Addr: A000)
-Accessed Page 8 (Virtual Addr: B000)
-Accessed Page 9 (Virtual Addr: C000)
-Accessed Page 10 (Virtual Addr: D000)
+$ test2 2
+--- Program 2: Cyclic 5-Page Access using Algo 2 ---
+Loop 0: Read Page 0 (val: 0)
+Loop 0: Read Page 1 (val: 0)
+Loop 0: Read Page 2 (val: 0)
+Loop 0: Read Page 3 (val: 0)
+Loop 0: Read Page 4 (val: 0)
+Loop 1: Read Page 0 (val: 0)
+Loop 1: Read Page 1 (val: 0)
+Loop 1: Read Page 2 (val: 0)
+Loop 1: Read Page 3 (val: 0)
+Loop 1: Read Page 4 (val: 0)
+Loop 2: Read Page 0 (val: 0)
+Loop 2: Read Page 1 (val: 0)
+Loop 2: Read Page 2 (val: 0)
+Loop 2: Read Page 3 (val: 0)
+Loop 2: Read Page 4 (val: 0)
+Loop 3: Read Page 0 (val: 0)
+Loop 3: Read Page 1 (val: 0)
+Loop 3: Read Page 2 (val: 0)
+Loop 3: Read Page 3 (val: 0)
+Loop 3: Read Page 4 (val: 0)
 Hit Count: 0
 Hit Ratio: 0%
-Execution Time: 4 ticks
+Execution Time: 6 ticks
+$ test2 3
+--- Program 2: Cyclic 5-Page Access using Algo 3 ---
+Loop 0: Read Page 0 (val: 0)
+Loop 0: Read Page 1 (val: 0)
+Loop 0: Read Page 2 (val: 0)
+Loop 0: Read Page 3 (val: 0)
+Loop 0: Read Page 4 (val: 0)
+Loop 1: Read Page 0 (val: 0)
+Loop 1: Read Page 1 (val: 0)
+Loop 1: Read Page 2 (val: 0)
+Loop 1: Read Page 3 (val: 0)
+Loop 1: Read Page 4 (val: 0)
+Loop 2: Read Page 0 (val: 0)
+Loop 2: Read Page 1 (val: 0)
+Loop 2: Read Page 2 (val: 0)
+Loop 2: Read Page 3 (val: 0)
+Loop 2: Read Page 4 (val: 0)
+Loop 3: Read Page 0 (val: 0)
+Loop 3: Read Page 1 (val: 0)
+Loop 3: Read Page 2 (val: 0)
+Loop 3: Read Page 3 (val: 0)
+Loop 3: Read Page 4 (val: 0)
+Hit Count: 0
+Hit Ratio: 0%
+Execution Time: 6 ticks

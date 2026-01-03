@@ -26,6 +26,7 @@ int uptime(void);
 int paging_write(void* ptr, int value, int algo);
 int paging_read(void* ptr, int algo);
 void paging_metrics(void);
+void reset_paging_metrics(void);
 
 // ulib.c
 int stat(const char*, struct stat*);

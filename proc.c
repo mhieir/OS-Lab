@@ -241,6 +241,7 @@ exit(void)
       curproc->ofile[fd] = 0;
     }
   }
+  paging_exit_cleanup(curproc->pid);
 
   begin_op();
   iput(curproc->cwd);
