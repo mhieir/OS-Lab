@@ -1,0 +1,105 @@
+$ test2 0
+--- Program 2: Cyclic 5-Page Access using Algo 0 ---
+Loop 0: Read Page 0 (val: 0)
+Loop 0: Read Page 1 (val: 100)
+Loop 0: Read Page 2 (val: 200)
+Loop 0: Read Page 3 (val: 300)
+Loop 0: Read Page 4 (val: 400)
+Loop 1: Read Page 0 (val: 0)
+Loop 1: Read Page 1 (val: 100)
+Loop 1: Read Page 2 (val: 200)
+Loop 1: Read Page 3 (val: 300)
+Loop 1: Read Page 4 (val: 400)
+Loop 2: Read Page 0 (val: 0)
+Loop 2: Read Page 1 (val: 100)
+Loop 2: Read Page 2 (val: 200)
+Loop 2: Read Page 3 (val: 300)
+Loop 2: Read Page 4 (val: 400)
+Loop 3: Read Page 0 (val: 0)
+Loop 3: Read Page 1 (val: 100)
+Loop 3: Read Page 2 (val: 200)
+Loop 3: Read Page 3 (val: 300)
+Loop 3: Read Page 4 (val: 400)
+Hit Count: 6
+total access: 20
+Hit Ratio: 30%
+Execution Time: 7 ticks
+$ 
+$ test2 1
+--- Program 2: Cyclic 5-Page Access using Algo 1 ---
+Loop 0: Read Page 0 (val: 0)
+Loop 0: Read Page 1 (val: 100)
+Loop 0: Read Page 2 (val: 200)
+Loop 0: Read Page 3 (val: 300)
+Loop 0: Read Page 4 (val: 400)
+Loop 1: Read Page 0 (val: 0)
+Loop 1: Read Page 1 (val: 100)
+Loop 1: Read Page 2 (val: 200)
+Loop 1: Read Page 3 (val: 300)
+Loop 1: Read Page 4 (val: 400)
+Loop 2: Read Page 0 (val: 0)
+Loop 2: Read Page 1 (val: 100)
+Loop 2: Read Page 2 (val: 200)
+Loop 2: Read Page 3 (val: 300)
+Loop 2: Read Page 4 (val: 400)
+Loop 3: Read Page 0 (val: 0)
+Loop 3: Read Page 1 (val: 100)
+Loop 3: Read Page 2 (val: 200)
+Loop 3: Read Page 3 (val: 300)
+Loop 3: Read Page 4 (val: 400)
+Hit Count: 7
+total access: 20
+Hit Ratio: 35%
+Execution Time: 7 ticks
+$ test2 2
+--- Program 2: Cyclic 5-Page Access using Algo 2 ---
+Loop 0: Read Page 0 (val: 0)
+Loop 0: Read Page 1 (val: 100)
+Loop 0: Read Page 2 (val: 200)
+Loop 0: Read Page 3 (val: 300)
+Loop 0: Read Page 4 (val: 400)
+Loop 1: Read Page 0 (val: 0)
+Loop 1: Read Page 1 (val: 100)
+Loop 1: Read Page 2 (val: 200)
+Loop 1: Read Page 3 (val: 300)
+Loop 1: Read Page 4 (val: 400)
+Loop 2: Read Page 0 (val: 0)
+Loop 2: Read Page 1 (val: 100)
+Loop 2: Read Page 2 (val: 200)
+Loop 2: Read Page 3 (val: 300)
+Loop 2: Read Page 4 (val: 400)
+Loop 3: Read Page 0 (val: 0)
+Loop 3: Read Page 1 (val: 100)
+Loop 3: Read Page 2 (val: 200)
+Loop 3: Read Page 3 (val: 300)
+Loop 3: Read Page 4 (val: 400)
+Hit Count: 12
+total access: 20
+Hit Ratio: 60%
+Execution Time: 6 ticks
+$ test2 3
+--- Program 2: Cyclic 5-Page Access using Algo 3 ---
+Loop 0: Read Page 0 (val: 0)
+Loop 0: Read Page 1 (val: 100)
+Loop 0: Read Page 2 (val: 200)
+Loop 0: Read Page 3 (val: 300)
+Loop 0: Read Page 4 (val: 400)
+Loop 1: Read Page 0 (val: 0)
+Loop 1: Read Page 1 (val: 100)
+Loop 1: Read Page 2 (val: 200)
+Loop 1: Read Page 3 (val: 300)
+Loop 1: Read Page 4 (val: 400)
+Loop 2: Read Page 0 (val: 0)
+Loop 2: Read Page 1 (val: 100)
+Loop 2: Read Page 2 (val: 200)
+Loop 2: Read Page 3 (val: 300)
+Loop 2: Read Page 4 (val: 400)
+Loop 3: Read Page 0 (val: 0)
+Loop 3: Read Page 1 (val: 100)
+Loop 3: Read Page 2 (val: 200)
+Loop 3: Read Page 3 (val: 300)
+Loop 3: Read Page 4 (val: 400)
+Hit Count: 0
+total access: 20
+Hit Ratio: 0%
+Execution Time: 7 ticks

@@ -1,0 +1,24 @@
+$ test4 0
+--- Program 4: Specific Sequence Access (Algo: 0) ---
+Hit Count: 200
+total access: 700
+Hit Ratio: 28%
+Execution Time: 539 ticks
+$ test4 1
+--- Program 4: Specific Sequence Access (Algo: 1) ---
+Hit Count: 398
+total access: 700
+Hit Ratio: 56%
+Execution Time: 365 ticks
+$ test4 2
+--- Program 4: Specific Sequence Access (Algo: 2) ---
+Hit Count: 500
+total access: 700
+Hit Ratio: 71%
+Execution Time: 282 ticks
+$ test4 3
+--- Program 4: Specific Sequence Access (Algo: 3) ---
+Hit Count: 200
+total access: 700
+Hit Ratio: 28%
+Execution Time: 524 ticks

@@ -1,0 +1,27 @@
+$ test3 0
+--- Program 3: Hot/Cold Access Patterns (Algo: 0) ---
+Hit Count: 14848
+total access: 15250
+Hit Ratio: 97%
+Execution Time: 151 ticks
+
+$ test3 1
+--- Program 3: Hot/Cold Access Patterns (Algo: 1) ---
+Hit Count: 14871
+total access: 15250
+Hit Ratio: 97%
+Execution Time: 141 ticks
+
+$ test3 2
+--- Program 3: Hot/Cold Access Patterns (Algo: 2) ---
+Hit Count: 15000
+total access: 15250
+Hit Ratio: 98%
+Execution Time: 108 ticks
+
+$ test3 3
+--- Program 3: Hot/Cold Access Patterns (Algo: 3) ---
+Hit Count: 14850
+total access: 15250
+Hit Ratio: 97%
+Execution Time: 144 ticks
